@@ -417,9 +417,9 @@ def test_delta():
 
 if __name__ == '__main__':
     TEST=False
-    number=10000
+    number=200
     repeats = 0
-    xs=[10000,20000]
+    xs=[10]
     p1=0.2
     p2=0.05
     params_dict = {'Use population means' : False,
@@ -437,7 +437,7 @@ if __name__ == '__main__':
             axes=[]
         
         for i in range(repeats+1):
-            df=test_sigma_with_inferred_means(number=number,xs=xs,params=[p1,p2,params_dict],disjoint=True,axes=axes,verbose=False)
+            df=test_sigma_with_inferred_means(number=number,xs=xs,params=[p1,p2,params_dict],disjoint=False,axes=axes,verbose=False)
             df1=pd.concat([df1,df],axis=0)
 
         df1.to_csv("{0}/Sigma_comparison{1}_repeated_runs_{2}_time series.csv".format(TEMP_DIR,i+1,number))
