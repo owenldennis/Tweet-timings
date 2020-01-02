@@ -24,11 +24,7 @@ TEST_MATRIX1 = [[1,0,0,1,1,0,0,0,0,0,0,0,0,1,1],[1,1,0,0,0,0,0,1,0,0,0,1,0,0,1]]
 ROOT_DIR="C:/Users/owen/Machine learning projects/Luc_tweet project"
 RESULTS_DIR="{0}/Results" .format(ROOT_DIR)
 TEMP_DIR="{0}/Temp".format(ROOT_DIR)
-
-
-
-
-         
+       
 
 class pairwise_stats():
     """ Calculate parameters and z-scores based on Messager et al (2019) for two time series of the same length
@@ -46,27 +42,39 @@ class pairwise_stats():
         if test:
             self.verbose=True
             self.run_test(random_test=random_test)
+            self.sparse=False
         else:
             self.ts1 = np.array(ts1)
             self.ts2 = np.array(ts2)
-            self.T = len(self.ts1)
             self.population_ps=population_ps
-            # if population probabilities are given, store - otherwise estimate from time series 
+            self.sparse=population_ps[2].get('sparse')
+            if self.sparse:
+                self.T=self.population_ps[2].get('T')
+            else:
+                self.T = len(self.ts1)
+            # if population probabilities are given and are to be used, store - otherwise estimate from time series 
             if population_ps[0] and population_ps[2].get('Use population means'):
-                self.p1=population_ps[0]
-                self.p2=population_ps[1]
+                self.n1=population_ps[0]*self.T
+                self.n2=population_ps[1]*self.T
+            elif self.sparse:
+                self.n1=len(self.ts1)
+                self.n2=len(self.ts2)                                   
             else:
                 self.n1=sum(self.ts1)
                 self.n2=sum(self.ts2)
-                self.p1 = self.n1/self.T
-                self.p2 = self.n2/self.T
+                
+            self.p1 = self.n1/self.T
+            self.p2 = self.n2/self.T
 
-            if not len(self.ts1)==len(self.ts2):
+            if not len(self.ts1)==len(self.ts2) and not self.sparse:
                 print("Warning - lengths of time series do not match")
+                
             self.delta = delta
             
             if marks_dict.get(delta):
                 self.marks_dict=marks_dict 
+            elif self.sparse:
+                self.marks_dict={}
             else:
                 self.marks_dict = {0:np.dot(self.ts1,self.ts2)}
                 
@@ -99,14 +107,20 @@ class pairwise_stats():
             stats = pd.concat([self.stats,stats]) 
         print(stats)
     
-    def count_marks_obsolete_slow_method(self):
-        self.marks = np.dot(self.ts1,self.ts2)
-        for shift in range(1,self.delta+1):
-            self.marks += np.dot(self.ts1[shift:],self.ts2[:-shift])
-            self.marks += np.dot(self.ts1[:-shift],self.ts2[shift:])
-        self.marks_dict[self.delta]=self.marks
+#    def count_marks_obsolete_slow_method(self):
+#        self.marks = np.dot(self.ts1,self.ts2)
+#        for shift in range(1,self.delta+1):
+#            self.marks += np.dot(self.ts1[shift:],self.ts2[:-shift])
+#            self.marks += np.dot(self.ts1[:-shift],self.ts2[shift:])
+#        self.marks_dict[self.delta]=self.marks
     
     def count_marks(self):
+        if self.sparse:
+            self.count_marks_sparse(self.delta)
+            #print(self.ts1)
+            #print(self.ts2)
+            #print(self.marks)#########
+            return 0
         m1=self.marks_dict.get(self.delta)
         m=self.marks_dict.get(self.delta-1)
         if m1:
@@ -119,6 +133,49 @@ class pairwise_stats():
             for shift in range(1,self.delta+1):
                 self.marks += np.dot(self.ts1[shift:],self.ts2[:-shift])
                 self.marks += np.dot(self.ts1[:-shift],self.ts2[shift:])
+        #print(self.ts1)
+        #print(self.ts2)        
+        #print(self.marks)#############
+    
+    def count_marks_sparse(self,max_delta,verbose=True):
+        if not max_delta or max_delta<self.delta:
+            max_delta=self.delta
+        marks=0
+        #delta_mark_dict=collections.defaultdict(int)
+        for t in self.ts1:
+            marks+=len(np.where(np.abs(self.ts2-t)<=max_delta)[0])
+        self.marks=marks
+#            if t-self.ts2[index] > max_delta:
+#                if verbose:
+#                    print("ts1 value: {0}, too big compared to ts2 index: {1}".format(t,index))                   
+#                if index==len(self.ts2)-1:
+#                    continue
+#                if verbose:
+#                    print("incrementing index")
+#                index+=1
+#            elif self.ts2[index]-t > max_delta:
+#                if verbose:
+#                    print("ts2 index :{0}, too big compared to t {1}".format(index,t))
+#                    print("Moving to next ts1 entry")
+#                continue
+#            else:
+#                i=index
+#                while index<len(self.ts2)-1 and np.abs(t-self.ts2[index])<=max_delta:
+#                    if verbose:
+#                        print("Index is {0}. Storing mark in dictionary, incrementing index".format(index))
+#                    delta_mark_dict[np.abs(t-self.ts2[index])]+=1
+#                    index+=1
+#                print("Resetting index to {0}".format(i))
+#                index=i
+                
+#        running_total=0
+#        for i in range(max_delta+1):
+#            if i in delta_mark_dict.keys():
+#                running_total+=delta_mark_dict[i]
+#            self.marks_dict[i]=running_total
+#            
+#        self.marks=self.marks_dict[self.delta]
+            
     
     def calculate_params(self,verbose=False):
         self.count_marks()
@@ -180,24 +237,30 @@ class tweet_data():
     * the second will display a histogram of the z-scores for all correlations measured
     """
     
-    def __init__(self,tweet_matrices = [],number=12000,length = 50,population_ps = [None,None,{}],bernoulli=True,delta = 2,
+    def __init__(self,tweet_matrices = [],population_ps = [None,None,{}],bernoulli=True,delta = 2,
                 disjoint_sets = False,test_delta = False,verbose=False,axes=None):
         self.axes = axes
         self.population_ps = population_ps
-        self.ps=[[None for i in range(number)] for j in range(2)]
         self.verbose=verbose
         self.disjoint_sets=disjoint_sets
-        
+        self.sparse=self.population_ps[2].get('sparse')
+        self.T=self.population_ps[2].get('T')
+        self.n=self.population_ps[2].get('n')
+        self.ps=[[None for i in range(self.n)] for j in range(2)]
+        # if matrices are passed and are sparse, length of each time series should have been passed in population_ps
+        # if not, it is inferred as the largest final entry across all time series
         if len(tweet_matrices):
+            if self.sparse:
+                if not self.T:
+                    self.T=max([ts[-1] for i in range(len(tweet_matrices)) for ts in tweet_matrices[i]])
+            else:
+                self.T = len(tweet_matrices[0][0])                
             self.tweet_matrices = tweet_matrices
-            self.T = len(self.tweet_matrices[0][0])
             self.n = len(self.tweet_matrices[0])
             self.MARKS = [[None for i in range(self.n)] for j in range(self.n)]
         else:
             if verbose:
                 print("About to initialise tweet matrix")
-            self.T=length
-            self.n=number
             self.MARKS = [[None for i in range(self.n)] for j in range(self.n)]
             #if population_ps[2].get("random seed"):
             #    seeds = np.random.choice(10*self.n,2*self.n)
@@ -205,14 +268,19 @@ class tweet_data():
             #    seeds = [None]*2*self.n      
             self.initialise_arrays()
             
-        if not self.axes:
+        if not len(self.axes):
             f,self.axes=plt.subplots(1,len(self.tweet_matrices))
 
-        for i,m in enumerate(self.tweet_matrices):           
-            print("Analysis of tweet matrix {2}: {0} time series length {1}".format(len(m),len(m[0]),i))
-            probs = np.sum([ts for ts in m],axis=1)/len(m[0])
+        if True:
+            for i,m in enumerate(self.tweet_matrices):           
+                print("Analysis of tweet matrix {2}: {0} time series length {1}".format(len(m),self.T,i))
+            if not self.sparse:
+                probs = [np.sum(ts)/self.T for ts in m]
+            else:
+                probs=[len(ts)/self.T for ts in m]
+                print(self.T)
             self.axes[0].hist(probs,bins=100)
-            self.axes[0].set_title("Proportion of 1s in each time series")
+            self.axes[0].set_title("Proportion of 1s across all time series analysed")
 
         if test_delta:
             self.test_delta()               
@@ -232,24 +300,24 @@ class tweet_data():
             self.ps=[[p if p<1 else np.random.uniform(0.1,0.3) for p in ps] for ps in self.ps]
             self.tweet_matrices = [[np.random.choice([0,1],p=[1-p,p],size=T) for p in ps] for ps in self.ps]
         
-    def calculate_marks(self,verbose=False):
-        M=np.array(self.tweet_matrices[0])
-        self.MARKS_DICT={}
-        if self.disjoint_sets:
-            N=np.transpose(self.tweet_matrices[1])
-        else:
-            N=np.transpose(self.tweet_matrices[0])
-        marks=np.dot(M,N)
-        self.MARKS_DICT[0]=np.copy(marks)
-        for i in range(1,self.delta+1):
-            print("Calculating marks for delta {0}".format(i))
-            marks += np.dot(M[:,i:],N[:-i,:])
-            marks += np.dot(M[:,:-i],N[i:,:])
-            self.MARKS_DICT[i] = np.copy(marks)
-        
-        self.MARKS=np.copy(marks)
-        if verbose:
-            print(self.MARKS_DICT)  
+#    def calculate_marks(self,verbose=False):
+#        M=np.array(self.tweet_matrices[0])
+#        self.MARKS_DICT={}
+#        if self.disjoint_sets:
+#            N=np.transpose(self.tweet_matrices[1])
+#        else:
+#            N=np.transpose(self.tweet_matrices[0])
+#        marks=np.dot(M,N)
+#        self.MARKS_DICT[0]=np.copy(marks)
+#        for i in range(1,self.delta+1):
+#            print("Calculating marks for delta {0}".format(i))
+#            marks += np.dot(M[:,i:],N[:-i,:])
+#            marks += np.dot(M[:,:-i],N[i:,:])
+#            self.MARKS_DICT[i] = np.copy(marks)
+#        
+#        self.MARKS=np.copy(marks)
+#        if verbose:
+#            print(self.MARKS_DICT)  
     
 #    def calculate_Z_vals(self,verbose=False):
 #        Ns=np.sum(self.tweet_matrices[0],axis=1)
@@ -359,52 +427,56 @@ class tweet_data():
 
 if __name__ == '__main__':
     TEST=False
-    NEW_METHOD_TEST=True
-    number=200
-    length=10000
+    NEW_METHOD_TEST=False
+    number=5000
+    length=20000
     p1=0.2
     p2=0.05
-    params_dict = {'Use population means' : False,
+    params_dict = {'T' : length,
+                   'n' : number,
+                   'Use population means' : False,
                    'Use fixed means for setup' : False,
                        'random seed' : None,
-                   'Test_mode' : False}
+                   'Test_mode' : False,
+                   'sparse' : False}
     if TEST:
         ps = pairwise_stats(test=True,random_test=False,delta=5)
 
     elif NEW_METHOD_TEST:
-        number=20
-        length=100
+        params_dict['T'] = 100
+        params_dict['n'] = 20
         params_dict['Test_mode']=True
         start=time.time()
         #td = tweet_data(tweet_matrices = [TEST_MATRIX1,TEST_MATRIX1],number=2,length=50,delta=14,disjoint_sets=False,verbose=True)
-        td = tweet_data(number=number,length=length,population_ps=[p1,p2,params_dict],delta=int(np.sqrt(length)),disjoint_sets=False,verbose=True)
+        td = tweet_data(population_ps=[p1,p2,params_dict],delta=int(np.sqrt(length)),disjoint_sets=False,verbose=True)
         #td.calculate_marks(verbose=False)
         print(time.time()-start)
         td.test_delta()
+
     else:
-        td = tweet_data(number=number,length=length,population_ps=[p1,p2,params_dict],delta=int(np.sqrt(length)),disjoint_sets=False,verbose=True)
-    """ 
+        td = tweet_data(population_ps=[p1,p2,params_dict],delta=int(np.sqrt(length)),disjoint_sets=True,verbose=True)
+     
     #print(td.ps)
     #td.calculate_Z_vals(verbose=True)
-    start=time.time()
-    print("Calculating marks")
-    td.calculate_marks(verbose=False)
-    t1=time.time()-start
-    print("Time check: {0}".format(t1))
+        start=time.time()
+    #print("Calculating marks")
+    #td.calculate_marks(verbose=False)
+    #t1=time.time()-start
+    #print("Time check: {0}".format(t1))
 
-    print("Calculating z-values")
-    td.display_Z_vals()
-    t2=time.time()-start
-    print("Total time: {0}".format(t2))
+        print("Calculating z-values")
+        td.display_Z_vals()
+        t2=time.time()-start
+        print("Total time: {0}".format(t2))
     
-    td.MARKS = [[None for i in range(number)] for j in range(number)]
-    print("Now calculating from scratch")
-    start = time.time()
-    td.display_Z_vals()
-    t3=time.time()-start
-    print("Time: {0}".format(t3))
-    print(pd.DataFrame([t1,t2,t3],index=['Matrix method for marks','Total time using matrix method','Time using standard method']))
-    """
+    #td.MARKS = [[None for i in range(number)] for j in range(number)]
+    #print("Now calculating from scratch")
+    #start = time.time()
+    #td.display_Z_vals()
+    #t3=time.time()-start
+    #print("Time: {0}".format(t3))
+    #print(pd.DataFrame([t1,t2,t3],index=['Matrix method for marks','Total time using matrix method','Time using standard method']))
+    #
       
 
 
