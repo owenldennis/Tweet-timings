@@ -6,6 +6,10 @@ Class tweet_sequence creates an individual time series in which sparsity is dete
 Class pairwise_stats uses 2019 pairwise correlation measure (Messager et al) to determined z-scores for two Bernoulli time series
 Class tweet_data creates a set of time series and analyses correlation across all pairs
 
+******
+TESTING BRANCHING - edited in new branch!
+******
+
 @author: owen
 """
 
