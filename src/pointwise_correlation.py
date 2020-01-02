@@ -28,47 +28,6 @@ ROOT_DIR="C:/Users/owen/Machine learning projects/Luc_tweet project"
 RESULTS_DIR="{0}/Results" .format(ROOT_DIR)
 TEMP_DIR="{0}/Temp".format(ROOT_DIR)
 
-class tweet_sequence_obsolete():
-    """
-    * Creates a (sparse) time series which can either be categorical (Bernoulli) or multiple values
-    * Sparsity determined by p_tweet, the probability of a particular time-step being non-zero
-    * If p_tweet is not passed, the value is determined by an exponential distribution based on the length of the time series
-    * If Bernoulli==True non-zero entries are 1  
-    * If Bernoulli==False non-zero entries are assigned a random integer value up to a maximum value
-    * which is determined by an exponential distribution with parameter 10
-    """
-    
-    def __init__(self, length=65, p_tweet=0.25, random_seed = None,bernoulli=True):
-        self.length = length
-        self.bernoulli = bernoulli
-        self.p_tweet = p_tweet
-        self.array = []
-        self.random_seed = random_seed
-        if not self.p_tweet:
-            self.p_tweet = 10
-            while self.p_tweet>1:
-                self.p_tweet = np.random.chisquare(6)/30
-        self.max_tweets = int(np.random.exponential(10))
-        self.set_up()
-        
-    def set_up(self):
-        # create time series (either categorical or multi-valued)
-        if self.bernoulli:
-            np.random.seed(self.random_seed)
-            seeds = np.random.choice(10*self.length,self.length)
-            for seed in seeds:
-                np.random.seed(seed=seed)
-                if np.random.uniform()<self.p_tweet:
-                    self.array.append(1)
-                else:
-                    self.array.append(0)
-        #else:
-        #    self.indices = np.random.choice(range(self.length),np.int(self.length*self.p_tweet),replace=False)
-        #    self.array = [np.random.randint(1,self.max_tweets) if i in self.indices else 0 for i in range(self.length)]
-    
-    def display(self):
-        print(self.array)
-        pass
 
 class tweet_sequence():
 
