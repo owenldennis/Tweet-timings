@@ -8,6 +8,7 @@ Created on Sun Dec 29 16:44:59 2019
 import numpy as np
 import time
 import time_series_correlation as tsc
+import pointwise_correlation as pc
 import matplotlib.pyplot as plt
 
 class poisson_process():
@@ -148,6 +149,7 @@ def compare_sparse_to_dense():
             
 if __name__=='__main__':
     test=False
+    simplified=True
     if test:
         compare_sparse_to_dense()
         
@@ -159,7 +161,8 @@ if __name__=='__main__':
         Y1=l
         Y2=l
         Z=l
-        sparse=True
+        # watch out - sparse for pc is opposite for tsc!
+        sparse=False
         
             
         lambdas = {'Y1': {'lambda':Y1,'baseline':False},
@@ -170,6 +173,8 @@ if __name__=='__main__':
         pp=poisson_process(number,length,lambdas=lambdas,params=params)
         params_dict = {'T' : length,
                    'n' : number,
+                   'p1' : None,
+                   'p2' : None,
                    'Use population means' : False,
                    'Use fixed means for setup' : False,
                    'random seed' : None,
@@ -183,7 +188,10 @@ if __name__=='__main__':
         X2=pp.ts_dict['Y2']
         #print(X1)
         #print(X2)
-        td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=25,axes=axes[0,:])
+        if simplified:
+            td=pc.tweet_data([X1,X2],params=params_dict,disjoint_sets=True,delta=25,axes=axes[0,:])
+        else:
+            td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=25,axes=axes[0,:])
         start=time.time()
         #td.test_delta(max_delta=200,delta_step=5)
         td.display_Z_vals(ax=axes[0][1])
@@ -193,7 +201,12 @@ if __name__=='__main__':
         X2=pp.ts_dict['X2']
         #print(X1)
         #print(X2)
-        td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=25,axes=axes[1,:])
+        if simplified:
+            td=pc.tweet_data([X1,X2],params=params_dict,disjoint_sets=True,delta=25,axes=axes[0,:])
+        else:
+            td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=25,axes=axes[0,:])
+    
+        #td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=25,axes=axes[1,:])
         td.display_Z_vals(ax=axes[1][1])
         t2=time.time()-start
         print("Completed in {0}".format(time.time()-start))

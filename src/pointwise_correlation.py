@@ -48,10 +48,11 @@ class pairwise_stats():
             self.params=params
             self.sparse=params.get('sparse')
             self.T=self.params.get('T')
+            
             # if population probabilities are given and are to be used, store - otherwise estimate from time series 
-            if params['p1'] and params.get('Use population means'):
-                self.n1=params['p1']*self.T
-                self.n2=params['p2']*self.T
+            if params.get('p1') and params.get('Use population means'):
+                self.n1=params.get('p1')*self.T
+                self.n2=params.get('p2')*self.T
             else:
                 self.n1=len(self.ts1)
                 self.n2=len(self.ts2)                                                   
@@ -95,7 +96,7 @@ class pairwise_stats():
             stats = pd.concat([self.stats,stats]) 
         print(stats)
         
-    def count_marks(self,max_delta,verbose=False):
+    def count_marks(self,max_delta=None,verbose=False):
         if not max_delta or max_delta<self.delta:
             max_delta=self.delta
         marks=0
@@ -173,16 +174,17 @@ class tweet_data():
         self.T=self.params.get('T')
         self.n=self.params.get('n')
         self.ps=[[None for i in range(self.n)] for j in range(2)]
-        self.tweet_matrices = tweet_matrices
+        self.tweet_matrices = np.array(tweet_matrices)
+        self.sparse=params['sparse']
         # if matrices are passed and are dense, length of each time series should have been passed in params
         # if not, it is inferred as the largest final entry across all time series
         # if matrices passed are sparse, they are densified
         if len(self.tweet_matrices):
-            if np.sum(tweet_matrices[0][0])/len(tweet_matrices[0][0])<0.5:
-                self.densify()
-            if not self.T:
-                self.T=max([ts[-1] for i in range(len(tweet_matrices)) for ts in tweet_matrices[i]])     
+            if not self.T or not self.n:
+                self.T=max([ts[-1] for i in range(len(tweet_matrices)) for ts in tweet_matrices[i]])
                 self.n = len(self.tweet_matrices[0])
+            if self.sparse:
+                self.densify()
         else:
             if verbose:
                 print("About to initialise tweet matrix")    
@@ -215,7 +217,7 @@ class tweet_data():
             self.ps=[[p if p<1 else np.random.uniform(0.1,0.3) for p in ps] for ps in self.ps]
             self.tweet_matrices = [[np.random.choice([0,1],p=[1-p,p],size=T) for p in ps] for ps in self.ps]
 
-    def densify(self,verbose=True):
+    def densify(self,verbose=False):
         self.tweet_matrices=[[np.where(ts==1)[0] for ts in ts_matrix] for ts_matrix in self.tweet_matrices]
         if verbose:
             print(self.tweet_matrices)
@@ -226,13 +228,13 @@ class tweet_data():
         if self.disjoint_sets:
             self.tweet_matrix1=self.tweet_matrices[1]
             self.results = np.array([pairwise_stats(ts1=self.tweet_matrix[i],ts2=self.tweet_matrix1[i],delta=self.delta,progress={'step':i,'one_percent_step':int(self.n/100)},
-                                params = [self.ps[0][i],self.ps[1][i],self.params],verbose=True).Z_score
+                                params = self.params,verbose=True).Z_score
                                 for i in range(int(len(self.tweet_matrix)))])
         else:
             self.tweet_matrix1=self.tweet_matrices[0]
             self.ps=[self.ps[0],self.ps[0]]
             self.results = np.array([pairwise_stats(ts1=self.tweet_matrix[i],ts2=self.tweet_matrix[j],delta=self.delta,progress={'step':self.n*i+j+1,'one_percent_step':self.n*int(self.n/100+1)},
-                                params = [self.ps[0][i],self.ps[0][j],self.params]).Z_score
+                                params =self.params).Z_score
                                 for i in range(self.n-1) for j in range(i+1,self.n)])
         self.results = [r for r in self.results if r<np.inf]
         if ax==None:
@@ -314,7 +316,7 @@ class tweet_data():
         plt.hist(corrs, bins = 200)  
 
 
-def test_sigma_with_inferred_means(number=100,xs=[100,200,300,400,500],params={},disjoint=False,verbose=False,axes=[]):
+def test_sigma_with_inferred_means(xs=[100,200,300,400,500],params={},disjoint=False,verbose=False,axes=[]):
     """
     *Compares z_scores when means are inferred/known
     *Plot of sigma values for each against length of time series (given by parameter xs) is also shown
@@ -346,7 +348,8 @@ def test_sigma_with_inferred_means(number=100,xs=[100,200,300,400,500],params={}
 
     start_time = time.time()
     for T in xs:
-        ts.append(T)        
+        ts.append(T)
+        params_dict['T']=T        
         print("T is {0}".format(T))
         delta = int(np.sqrt(T))
         if not len(axes):
@@ -359,7 +362,7 @@ def test_sigma_with_inferred_means(number=100,xs=[100,200,300,400,500],params={}
             
         params_dict['Use population means']=False
         print("Running with inferred means.  Time elapsed: {0}".format(time.time()-start_time))
-        td = tweet_data(number = number,length = T,params = params_dict,delta = delta,
+        td = tweet_data(params = params_dict,delta = delta,
                         disjoint_sets=disjoint,verbose=verbose,axes = [axes[0][0],axes[1][0]])
         td.display_Z_vals()
         ys.append(np.std(td.results))
@@ -391,21 +394,32 @@ def test_sigma_with_inferred_means(number=100,xs=[100,200,300,400,500],params={}
       
 
 if __name__ == '__main__':
-    TEST=True
+    TEST=False
+    TEST1=True
     number=200
     repeats = 0
     xs=[10]
     p1=0.2
     p2=0.05
-    params_dict = {'T': 20,
-                   'n': 5,
+    params_dict = {'T': length,
+                   'n': number,
                    'p1': 0.2,
                    'p2': 0.05,
                    'Use population means' : False,
-                       'random seed' : None}
+                   'Use fixed means for setup' : False,
+                       'random seed' : None,
+                'sparse': True}
     if TEST:
+        if TEST1:
+            params_dict['T']=len(TEST_MATRIX1[0])
+            params_dict['n']=len(TEST_MATRIX1)
+            TM=TEST_MATRIX1
+        else:
+            params_dict['T']=len(TEST_MATRIX[0])
+            params_dict['n']=len(TEST_MATRIX)
+            TM=TEST_MATRIX
         #ps = pairwise_stats(test=True,random_test=False,delta=5)
-        td = tweet_data(tweet_matrices = [TEST_MATRIX,TEST_MATRIX],params=params_dict,delta=5,verbose=True)
+        td = tweet_data(tweet_matrices = [TM,TM],params=params_dict,delta=5,verbose=True)
     else:
         df1=pd.DataFrame()
         df1.to_csv("{0}/Sigma_comparison{1}.csv".format(TEMP_DIR,str(xs)[:10]),mode='w')
@@ -416,7 +430,7 @@ if __name__ == '__main__':
             axes=[]
         
         for i in range(repeats+1):
-            df=test_sigma_with_inferred_means(number=number,xs=xs,params=[p1,p2,params_dict],disjoint=False,axes=axes,verbose=False)
+            df=test_sigma_with_inferred_means(xs=xs,params=params_dict,disjoint=False,axes=axes,verbose=False)
             df1=pd.concat([df1,df],axis=0)
 
         df1.to_csv("{0}/Sigma_comparison{1}_repeated_runs_{2}_time series.csv".format(TEMP_DIR,i+1,number))
