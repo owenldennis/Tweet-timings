@@ -149,20 +149,25 @@ def compare_sparse_to_dense():
             
 if __name__=='__main__':
     test=False
-    simplified=True
+    simplified=False
     if test:
         compare_sparse_to_dense()
         
     else:
         number=5000
         length=5000
+        delta=int(np.sqrt(length))
         p=0.01
+        p1=0.01
+        p2=0.01
         l=int(1/p)
         Y1=l
         Y2=l
         Z=l
         # watch out - sparse for pc is opposite for tsc!
         sparse=False
+        if not simplified:
+            sparse=not sparse
         
             
         lambdas = {'Y1': {'lambda':Y1,'baseline':False},
@@ -173,8 +178,8 @@ if __name__=='__main__':
         pp=poisson_process(number,length,lambdas=lambdas,params=params)
         params_dict = {'T' : length,
                    'n' : number,
-                   'p1' : None,
-                   'p2' : None,
+                   'p1' : p1,
+                   'p2' : p2,
                    'Use population means' : False,
                    'Use fixed means for setup' : False,
                    'random seed' : None,
@@ -189,9 +194,9 @@ if __name__=='__main__':
         #print(X1)
         #print(X2)
         if simplified:
-            td=pc.tweet_data([X1,X2],params=params_dict,disjoint_sets=True,delta=25,axes=axes[0,:])
+            td=pc.tweet_data([X1,X2],params=params_dict,disjoint_sets=True,delta=delta,axes=axes[0,:])
         else:
-            td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=25,axes=axes[0,:])
+            td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=delta,axes=axes[0,:])
         start=time.time()
         #td.test_delta(max_delta=200,delta_step=5)
         td.display_Z_vals(ax=axes[0][1])
@@ -202,9 +207,9 @@ if __name__=='__main__':
         #print(X1)
         #print(X2)
         if simplified:
-            td=pc.tweet_data([X1,X2],params=params_dict,disjoint_sets=True,delta=25,axes=axes[0,:])
+            td=pc.tweet_data([X1,X2],params=params_dict,disjoint_sets=True,delta=delta,axes=axes[0,:])
         else:
-            td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=25,axes=axes[0,:])
+            td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=delta,axes=axes[0,:])
     
         #td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=25,axes=axes[1,:])
         td.display_Z_vals(ax=axes[1][1])
