@@ -238,7 +238,7 @@ class tweet_data():
     """
     
     def __init__(self,tweet_matrices = [],population_ps = [None,None,{}],bernoulli=True,delta = 2,
-                disjoint_sets = False,test_delta = False,verbose=False,axes=None):
+                disjoint_sets = False,test_delta = False,verbose=False,axes=[]):
         self.axes = axes
         self.population_ps = population_ps
         self.verbose=verbose
@@ -429,13 +429,13 @@ if __name__ == '__main__':
     TEST=False
     NEW_METHOD_TEST=False
     number=5000
-    length=20000
+    length=2000
     p1=0.2
     p2=0.05
     params_dict = {'T' : length,
                    'n' : number,
                    'Use population means' : False,
-                   'Use fixed means for setup' : False,
+                   'Use fixed means for setup' : True,
                        'random seed' : None,
                    'Test_mode' : False,
                    'sparse' : False}

@@ -158,8 +158,6 @@ if __name__=='__main__':
         length=5000
         delta=int(np.sqrt(length))
         p=0.01
-        p1=0.01
-        p2=0.01
         l=int(1/p)
         Y1=l
         Y2=l
@@ -176,11 +174,18 @@ if __name__=='__main__':
                 }
         params={'mu':5,'sigma':3}
         pp=poisson_process(number,length,lambdas=lambdas,params=params)
+        
+        
+        
+        p1=np.sum([len(x) for x in pp.ts_dict['Y1']])/(number*length)
+        print(p1)
+        p2=np.sum([len(x) for x in pp.ts_dict['Y2']])/(number*length)
+        print(p2)
         params_dict = {'T' : length,
                    'n' : number,
                    'p1' : p1,
                    'p2' : p2,
-                   'Use population means' : False,
+                   'Use population means' : True,
                    'Use fixed means for setup' : False,
                    'random seed' : None,
                    'Test_mode' : False,
@@ -191,6 +196,7 @@ if __name__=='__main__':
         print("Starting uncorrelated test...")
         X1=pp.ts_dict['Y1']
         X2=pp.ts_dict['Y2']
+
         #print(X1)
         #print(X2)
         if simplified:
