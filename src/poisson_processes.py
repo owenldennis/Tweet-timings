@@ -39,22 +39,17 @@ class poisson_process():
     def create_poisson_processes(self,key,create_delayed_also=False):
         l=self.lambdas[key]['lambda']
         # create sequence of time intervals that are expected to sum to n*T
-        ts=np.random.exponential(l,size=int(1.1*self.T*self.n/l))
+        ts=np.random.exponential(l,size=(self.n,int(2*self.T/l)))
         if self.verbose:
             print("Random exponential set of time intervals totalling {0} initialised".format(self.T))
-            print("Elapsed time {0}".format(time.time()-self.start_time))
-        cts=np.cumsum(ts)
+            print("Elapsed time {0}.  Now cumulating...".format(time.time()-self.start_time))
+        cts=np.array([np.cumsum(t) for t in ts])
         if self.verbose:
-            print("Cumulative sum initialised to time {0}".format(cts[-1]))
-            print("Elapsed time {0}".format(time.time()-self.start_time))           
-        # add extra time intervals if random process not sufficient
-        while cts[-1]<self.T*self.n:
-            cts=np.append(cts,cts[-1]+np.random.exponential(l))
+            print("Cumulative sum initialised to time {0}".format(self.T))
+            print("Elapsed time {0}.  Now truncating....".format(time.time()-self.start_time)) 
+        self.ts_dict[key]=self.truncate_to_T(cts)
         if self.verbose:
-            print("Cumulative sum to time {0} initialised".format(self.T*self.n))
-            print("Elapsed time {0}".format(time.time()-self.start_time))  
-        # split into multiple time series
-        self.ts_dict[key] = self.split_cumulative_time_intervals_into_time_series(cts)
+            print("Cumulative sums truncated")
         # create delayed time series if required  
         if create_delayed_also:
             mu=self.params.get('mu')
@@ -63,27 +58,15 @@ class poisson_process():
                 sigma=1
             else:
                 sigma=self.params.get('sigma')
-            cts_star=[c+np.random.normal(mu,sigma) for c in cts]
-            self.ts_dict[key+"_star"]=self.split_cumulative_time_intervals_into_time_series(cts_star)
-    
-    def split_cumulative_time_intervals_into_time_series(self,cumulative_time_intervals):
-        if self.verbose:
-            print("Splitting into {0} distinct series".format(self.n))
-            print("Time elapsed {0}".format(time.time()-self.start_time))
-        cts=np.sort(list(set([int(t) for t in cumulative_time_intervals])))
-        pps=[]
-        start_index=0
-        index=0
-        # separate time intervals into n arrays each with final entry less than self.T
-        for i in range(self.n):
-            while cts[index]<self.T*(i+1):
-                index+=1
-            pps.append(cts[start_index:index]%self.T)
-            # deal with empty arrays, select one time step at random
-            if not len(pps[-1]):
-                pps[-1]=[np.random.randint(self.T)]
-            start_index=index
-        return np.array(pps)
+                if self.verbose:
+                    print("Now created lagging time series...")
+            cts_star=[[c+np.random.normal(mu,sigma) for c in ct] for ct in cts]
+            if self.verbose:
+                print("Lag added.  Elapsed time {0}.  Now truncating...".format(time.time()-self.start_time))
+            self.ts_dict[key+'_star']=self.truncate_to_T(cts_star)
+            
+    def truncate_to_T(self,cts):
+        return np.array([[c for c in ct if c<self.T] for ct in cts])
         
     def convert_to_binary_time_series(self,poisson_process_interval_arrays):
         pps=poisson_process_interval_arrays
@@ -171,7 +154,7 @@ if __name__=='__main__':
         
     else:
         number=5000
-        length=100000
+        length=1000
         delta=int(np.sqrt(length))
         p=0.1
         l=int(1/p)
@@ -203,8 +186,8 @@ if __name__=='__main__':
         X2=pp.ts_dict['Y2']
         p1=sum([len(x) for x in X1])/(number*length)
         p2=sum([len(x) for x in X2])/(number*length)
-        print(p2)
-        print(p1)
+#        print(p2)
+#        print(p1)
         td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=delta,axes=axes[0,:])
         start=time.time()
         #td.test_delta(max_delta=200,delta_step=5)
