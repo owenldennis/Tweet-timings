@@ -428,14 +428,14 @@ class tweet_data():
 if __name__ == '__main__':
     TEST=False
     NEW_METHOD_TEST=False
-    number=1000
-    length=1000
+    number=2000
+    length=40000
     p1=0.01
     p2=0.01
     params_dict = {'T' : length,
                    'n' : number,
                    'Use population means' : True,
-                   'Use fixed means for setup' : False,
+                   'Use fixed means for setup' : True,
                        'random seed' : None,
                    'Test_mode' : False,
                    'sparse' : False}

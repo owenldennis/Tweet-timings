@@ -153,8 +153,8 @@ if __name__=='__main__':
         compare_sparse_to_dense()
         
     else:
-        number=5000
-        length=1000
+        number=20000
+        length=50000
         delta=int(np.sqrt(length))
         p=0.1
         l=int(1/p)
@@ -200,15 +200,15 @@ if __name__=='__main__':
                    'Use fixed means for setup' : False,
                    'random seed' : None,
                    'Test_mode' : False,
-                   'sparse' :  False}  
+                   'sparse' :  True}  
         
         #X1=np.array([np.random.choice([0,1],p=[1-p1,p1],size=[number,length])])
         #X2=np.array([np.random.choice([0,1],p=[1-p2,p2],size=[number,length])])
         #X1=pp.convert_to_binary_time_series(X1)
         #X2=pp.convert_to_binary_time_series(X2)
-        #td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=25,axes=axes[1,:])
-        #td.display_Z_vals(ax=axes[1][1])
-        #t2=time.time()-start
+        td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=25,axes=axes[1,:])
+        td.display_Z_vals(ax=axes[1][1])
+        t2=time.time()-start
         print("Completed in {0}".format(time.time()-start))
 
 
