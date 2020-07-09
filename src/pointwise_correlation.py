@@ -321,7 +321,7 @@ def test_sigma_with_inferred_means(xs=[100,200,300,400,500],params={},disjoint=F
     *Compares z_scores when means are inferred/known
     *Plot of sigma values for each against length of time series (given by parameter xs) is also shown
     *Number of time series given by parameter number (either in one or both populations)
-    *If parameter disjoint is True, two separate populations are tested against each oterh pairwise
+    *If parameter disjoint is True, two separate populations are tested against each other pairwise
     *If disjoint is False, only one population is tested but all possible pairings are formed
     *If probs are None, individual probabilities are taken from a chai squared distribution
     """
@@ -396,9 +396,10 @@ def test_sigma_with_inferred_means(xs=[100,200,300,400,500],params={},disjoint=F
 if __name__ == '__main__':
     TEST=False
     TEST1=True
+    length = 50
     number=200
-    repeats = 0
-    xs=[10]
+    repeats = 10
+    xs=[20,50]
     p1=0.2
     p2=0.05
     params_dict = {'T': length,
