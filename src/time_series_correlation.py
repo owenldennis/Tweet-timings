@@ -37,7 +37,7 @@ class pairwise_stats():
                  test=False,random_test=False,verbose=False,progress={}):
         if progress.get('one_percent_step'):
             if not progress.get('step')%progress.get('one_percent_step'):
-                print(progress.get('step')/progress.get('one_percent_step'))
+                print(progress.get('step')/progress.get('one_percent_step'),end=",")
             
         if test:
             self.verbose=True
@@ -274,12 +274,13 @@ class tweet_data():
         if True:
             for i,m in enumerate(self.tweet_matrices):           
                 print("Analysis of tweet matrix {2}: {0} time series length {1}".format(len(m),self.T,i))
-            if not self.sparse:
-                probs = [np.sum(ts)/self.T for ts in m]
-            else:
-                probs=[len(ts)/self.T for ts in m]
-                print(self.T)
-            self.axes[0].hist(probs,bins=100)
+            
+                if not self.sparse:
+                    probs = [np.sum(ts)/self.T for ts in m]
+                else:
+                    probs=[len(ts)/self.T for ts in m]
+                    print(self.T)
+                self.axes[0].hist(probs,bins=100)
             self.axes[0].set_title("Proportion of 1s across all time series analysed")
 
         if test_delta:
