@@ -42,13 +42,13 @@ class pairwise_stats():
         if test:
             self.verbose=True
             self.run_test(random_test=random_test)
-            self.sparse=False
+            self.dense=False
         else:
             self.ts1 = np.array(ts1)
             self.ts2 = np.array(ts2)
             self.population_ps=population_ps
-            self.sparse=population_ps[2].get('sparse')
-            if self.sparse:
+            self.dense=population_ps[2].get('dense')
+            if self.dense:
                 self.T=self.population_ps[2].get('T')
             else:
                 self.T = len(self.ts1)
@@ -56,7 +56,7 @@ class pairwise_stats():
             if population_ps[0] and population_ps[2].get('Use population means'):
                 self.n1=population_ps[0]*self.T
                 self.n2=population_ps[1]*self.T
-            elif self.sparse:
+            elif self.dense:
                 self.n1=len(self.ts1)
                 self.n2=len(self.ts2)                                   
             else:
@@ -66,14 +66,14 @@ class pairwise_stats():
             self.p1 = self.n1/self.T
             self.p2 = self.n2/self.T
 
-            if not len(self.ts1)==len(self.ts2) and not self.sparse:
+            if not len(self.ts1)==len(self.ts2) and not self.dense:
                 print("Warning - lengths of time series do not match")
                 
             self.delta = delta
             
             if marks_dict.get(delta):
                 self.marks_dict=marks_dict 
-            elif self.sparse:
+            elif self.dense:
                 self.marks_dict={}
             else:
                 self.marks_dict = {0:np.dot(self.ts1,self.ts2)}
@@ -108,8 +108,8 @@ class pairwise_stats():
         print(stats)
     
     def count_marks(self):
-        if self.sparse:
-            self.count_marks_sparse(self.delta)
+        if self.dense:
+            self.count_marks_dense(self.delta)
             return 0
         m1=self.marks_dict.get(self.delta)
         m=self.marks_dict.get(self.delta-1)
@@ -124,7 +124,7 @@ class pairwise_stats():
                 self.marks += np.dot(self.ts1[shift:],self.ts2[:-shift])
                 self.marks += np.dot(self.ts1[:-shift],self.ts2[shift:])
     
-    def count_marks_sparse(self,max_delta,verbose=True):
+    def count_marks_dense(self,max_delta,verbose=True):
         if not max_delta or max_delta<self.delta:
             max_delta=self.delta
         marks=0
@@ -201,14 +201,14 @@ class tweet_data():
         self.population_ps = population_ps
         self.verbose=verbose
         self.disjoint_sets=disjoint_sets
-        self.sparse=self.population_ps[2].get('sparse')
+        self.dense=self.population_ps[2].get('dense')
         self.T=self.population_ps[2].get('T')
         self.n=self.population_ps[2].get('n')
         self.ps=[[None for i in range(self.n)] for j in range(2)]
-        # if matrices are passed and are sparse, length of each time series should have been passed in population_ps
+        # if matrices are passed and are dense, length of each time series should have been passed in population_ps
         # if not, it is inferred as the largest final entry across all time series
         if len(tweet_matrices):
-            if self.sparse:
+            if self.dense:
                 if not self.T:
                     self.T=max([ts[-1] for i in range(len(tweet_matrices)) for ts in tweet_matrices[i]])
             else:
@@ -232,7 +232,7 @@ class tweet_data():
 
         for i,m in enumerate(self.tweet_matrices):           
             print("Analysis of tweet matrix {2}: {0} time series length {1}".format(len(m),self.T,i))
-            if not self.sparse:
+            if not self.dense:
                 probs = [np.sum(ts)/self.T for ts in m]
             else:
                 probs=[len(ts)/self.T for ts in m]
@@ -389,7 +389,7 @@ if __name__ == '__main__':
                    'Use fixed means for setup' : True,
                        'random seed' : None,
                    'Test_mode' : False,
-                   'sparse' : True}
+                   'dense' : True}
     if TEST:
         ps = pairwise_stats(test=True,random_test=False,delta=5)
 

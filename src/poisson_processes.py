@@ -74,13 +74,13 @@ class poisson_process():
         ts_matrix=[[1 if i in pp else 0 for i in range(self.T)] for pp in pps]
         return np.array(ts_matrix)
     
-    def convert_to_sparse_time_series(self,binary_time_series):
+    def convert_to_dense_time_series(self,binary_time_series):
         bts=binary_time_series
-        sts=[[i for i in range(len(b)) if b[i]] for b in bts]
-        return sts
+        dts=[[i for i in range(len(b)) if b[i]] for b in bts]
+        return dts
         
 def compare_sparse_to_dense():
-    test_sparse_conversion=False
+    test_sparse_conversion=True
     
     if test_sparse_conversion:
         p=0.5   
@@ -93,8 +93,8 @@ def compare_sparse_to_dense():
         pp=poisson_process(2,10,lambdas,params)
         bts=pp.convert_to_binary_time_series(pp.ts_dict['X1'])
         print(bts)
-        sts=pp.convert_to_sparse_time_series(bts)
-        print(sts)
+        dts=pp.convert_to_dense_time_series(bts)
+        print(dts)
     else:
         number=500
         length=1000
@@ -127,7 +127,7 @@ def compare_sparse_to_dense():
                    'Use fixed means for setup' : False,
                    'random seed' : None,
                    'Test_mode' : False,
-                   'sparse' : False}
+                   'dense' : False}
         print("Starting first test...")
         td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=delta,axes=axes[0,:])
         start=time.time()
@@ -137,7 +137,7 @@ def compare_sparse_to_dense():
         t2=time.time()-start
         print("Completed in {0}".format(time.time()-start))
         print("Second test")
-        params_dict['sparse']=True
+        params_dict['dense']=True
         X1=pp.ts_dict['Y1']
         X2=pp.ts_dict['Y2']
         td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=delta,axes=axes[1,:])
@@ -165,10 +165,9 @@ if __name__=='__main__':
         Y2=l
         Z=l
 
-        # watch out - sparse for pc is opposite for tsc!
+
         sparse=False
-        if not simplified:
-            sparse=not sparse
+        dense=not sparse
         
             
         lambdas = {'Y1': {'lambda':Y1,'baseline':False},
@@ -193,7 +192,8 @@ if __name__=='__main__':
                    'Use fixed means for setup' : False,
                    'random seed' : None,
                    'Test_mode' : False,
-                   'sparse' :  True}
+                   'sparse' :  sparse,
+                   'dense' : dense}
         
         f,axes=plt.subplots(2,2)
         
