@@ -196,7 +196,7 @@ if __name__=='__main__':
         print("Starting reinitialised array test")
         params_dict = {'T' : length,
                    'n' : number,
-                   'Use population means' : True,
+                   'Use population means' : False,
                    'Use fixed means for setup' : False,
                    'random seed' : None,
                    'Test_mode' : False,
