@@ -36,11 +36,11 @@ class pairwise_stats():
     *   
     """
     
-    def __init__(self,ts1,ts2,params={},delta=1,marks_dict={},
+    def __init__(self,ts1,ts2,mean1=None,mean2=None,params={},delta=1,marks_dict={},
                  test=False,random_test=False,verbose=False,progress={}):
         if progress.get('one_percent_step'):
             if not progress.get('step')%progress.get('one_percent_step'):
-                print(progress.get('step')/progress.get('one_percent_step'))
+                print(progress.get('step')/progress.get('one_percent_step'),end = ',')
         
         if True:
             self.ts1 = np.array(ts1)
@@ -50,9 +50,9 @@ class pairwise_stats():
             self.T=self.params.get('T')
             
             # if population probabilities are given and are to be used, store - otherwise estimate from time series 
-            if params.get('p1') and params.get('Use population means'):
-                self.n1=params.get('p1')*self.T
-                self.n2=params.get('p2')*self.T
+            if self.params.get('Use population means'):
+                self.n1=mean1*self.T
+                self.n2=mean2*self.T
             else:
                 self.n1=len(self.ts1)
                 self.n2=len(self.ts2)                                                   
@@ -167,6 +167,7 @@ class tweet_data():
     
     def __init__(self,tweet_matrices = [],params = {},bernoulli=True,delta = 2,
                 disjoint_sets = False,test_delta = False,verbose=False,axes=[]):
+        print("HI - POINTWISE CORRELATION VERSION BEING USED...HOW EXCITING!")
         self.axes = axes
         self.params = params
         self.verbose=verbose
@@ -183,6 +184,8 @@ class tweet_data():
             if not self.T or not self.n:
                 self.T=max([ts[-1] for i in range(len(tweet_matrices)) for ts in tweet_matrices[i]])
                 self.n = len(self.tweet_matrices[0])
+            self.ps = self.params.get('Known probabilities array')
+            
             if self.sparse:
                 self.densify()
         else:
@@ -227,14 +230,16 @@ class tweet_data():
         self.tweet_matrix=self.tweet_matrices[0]
         if self.disjoint_sets:
             self.tweet_matrix1=self.tweet_matrices[1]
-            self.results = np.array([pairwise_stats(ts1=self.tweet_matrix[i],ts2=self.tweet_matrix1[i],delta=self.delta,progress={'step':i,'one_percent_step':int(self.n/100)},
-                                params = self.params,verbose=True).Z_score
+            self.results = np.array([pairwise_stats(ts1=self.tweet_matrix[i],ts2=self.tweet_matrix1[i],mean1=self.ps[0][i],mean2=self.ps[1][i],
+                                                    delta=self.delta,progress={'step':i,'one_percent_step':int(self.n/100)},
+                                                    params = self.params,verbose=True).Z_score
                                 for i in range(int(len(self.tweet_matrix)))])
         else:
             self.tweet_matrix1=self.tweet_matrices[0]
             self.ps=[self.ps[0],self.ps[0]]
-            self.results = np.array([pairwise_stats(ts1=self.tweet_matrix[i],ts2=self.tweet_matrix[j],delta=self.delta,progress={'step':self.n*i+j+1,'one_percent_step':self.n*int(self.n/100+1)},
-                                params =self.params).Z_score
+            self.results = np.array([pairwise_stats(ts1=self.tweet_matrix[i],ts2=self.tweet_matrix[j],mean1=self.ps[0][i],mean2=self.ps[0][j],
+                                                    delta=self.delta,progress={'step':self.n*i+j+1,'one_percent_step':self.n*int(self.n/100+1)},
+                                                    params =self.params).Z_score
                                 for i in range(self.n-1) for j in range(i+1,self.n)])
         self.results = [r for r in self.results if r<np.inf]
         if ax==None:
