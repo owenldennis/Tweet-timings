@@ -161,8 +161,8 @@ if __name__=='__main__':
         delta=int(np.sqrt(length))
         p=0.01
         l=int(1/p)
-        Y1=l
-        Y2=5
+        Y1=5
+        Y2=l
         Z=l
 
 
