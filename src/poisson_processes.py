@@ -150,7 +150,7 @@ def compare_sparse_to_dense():
             
 if __name__=='__main__':
     test=False
-    simplified=False
+    simplified=True
     if test:
         compare_sparse_to_dense()
         
@@ -161,8 +161,9 @@ if __name__=='__main__':
         delta=int(np.sqrt(length))
         p=0.01
         l=int(1/p)
-        Y1=5
-        Y2=l
+
+        Y1=l
+        Y2=3
         Z=l
 
 
