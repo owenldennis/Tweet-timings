@@ -215,6 +215,12 @@ class tweet_data():
                 self.T = len(tweet_matrices[0][0])                
             self.tweet_matrices = tweet_matrices
             self.n = len(self.tweet_matrices[0])
+            if self.population_ps[2].get('Known probabilities array'):
+                self.ps = self.population_ps[2]['Known probabilities array']
+            elif self.population_ps[2].get('Use population means'):
+                print("*"*300)
+                print("WARNING - NO KNOWN PROBABILITIES SO CANNOT CALCULATE WITH FIXED MEANS.  CALCULATION WILL BE BASED ON INFERRED MEANS")
+                print("*"*300)
             self.MARKS = [[None for i in range(self.n)] for j in range(self.n)]
         else:
             if verbose:
@@ -276,6 +282,8 @@ class tweet_data():
             self.tweet_matrix1=self.tweet_matrices[1]
             if self.verbose:
                 print("Calculating z-scores for pairs from disjoint sets")
+                #print("Params being used are {0}".format(self.population_ps))
+                #print("Random selection of probabilities set are {0}".format(self.ps[np.random.randint(2)][np.random.randint(self.n)]))
             split_time=time.time()
             self.results = np.array([pairwise_stats(ts1=self.tweet_matrix[i],ts2=self.tweet_matrix1[i],delta=self.delta,progress={'step':i,'one_percent_step':int(self.n/100)},
                                 population_ps = [self.ps[0][i],self.ps[1][i],self.population_ps[2]], marks_dict={self.delta: self.MARKS[i][i]},verbose=True).Z_score

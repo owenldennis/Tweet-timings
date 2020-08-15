@@ -157,12 +157,12 @@ if __name__=='__main__':
     else:
 
         number=5000
-        length=5000
+        length=15000
         delta=int(np.sqrt(length))
         p=0.01
         l=int(1/p)
         Y1=l
-        Y2=l
+        Y2=5
         Z=l
 
 
@@ -184,12 +184,14 @@ if __name__=='__main__':
         print(p1)
         p2=np.sum([len(x) for x in pp.ts_dict['Y2']])/(number*length)
         print(p2)
+        
+        
         params_dict = {'T' : length,
                    'n' : number,
                    'p1' : p1,
                    'p2' : p2,
-                   'Use population means' : True,
-                   'Use fixed means for setup' : False,
+                   'Use population means' : False,
+                   'Use fixed means for setup' : True,
                    'random seed' : None,
                    'Test_mode' : False,
                    'sparse' :  sparse,
@@ -235,21 +237,21 @@ if __name__=='__main__':
         #X2=pp.convert_to_binary_time_series(X2)
 #        td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=25,axes=axes[1,:])
 #=======
-        print("Starting correlated test...")
-        X1=pp.ts_dict['X1']
-        X2=pp.ts_dict['X2']
-        #print(X1)
-        #print(X2)
-        if simplified:
-            td=pc.tweet_data([X1,X2],params=params_dict,disjoint_sets=True,delta=delta,axes=axes[0,:])
-        else:
-            td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=delta,axes=axes[0,:])
-    
-        #td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=25,axes=axes[1,:])
+#        print("Starting correlated test...")
+#        X1=pp.ts_dict['X1']
+#        X2=pp.ts_dict['X2']
+#        #print(X1)
+#        #print(X2)
+#        if simplified:
+#            td=pc.tweet_data([X1,X2],params=params_dict,disjoint_sets=True,delta=delta,axes=axes[0,:])
+#        else:
+#            td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=delta,axes=axes[0,:])
+#    
+#        #td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=25,axes=axes[1,:])
 #>>>>>>> simplifying_code
-        td.display_Z_vals(ax=axes[1][1])
-        t2=time.time()-start
-        print("Completed in {0}".format(time.time()-start))
+#        td.display_Z_vals(ax=axes[1][1])
+#        t2=time.time()-start
+#        print("Completed in {0}".format(time.time()-start))
 
 
         
