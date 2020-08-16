@@ -122,23 +122,26 @@ def test_init1(ps=[0.1,0.5],n=10,T=10):
     plt.hist(props,bins=100)
 
 def test_init_random(n,T):
+    n=10000
+    T=1000
+    ps=[0.1,0.5]
+    start= time.time()
+    test_init(ps=ps,n=n,T=T)
+    print(time.time()-start)
+    test_init1(ps=ps,n=n,T=T)
+    print(time.time()-start)
+    print(time.time()-start)
     ps=[np.random.chisquare(6)/30 for i in range(n)]
     p_array = [np.random.choice([0,1],p=[1-ps[i],ps[i]],size=T) for i in range(len(ps))for j in range(2)]
     props=[sum(r)/len(r) for r in p_array]
     plt.hist(props,bins=100)
 
-n=10000
-T=1000
-ps=[0.1,0.5]
-start= time.time()
-test_init(ps=ps,n=n,T=T)
-print(time.time()-start)
-test_init1(ps=ps,n=n,T=T)
-print(time.time()-start)
-test_init_random(n,T)
-print(time.time()-start)
-    
-    
+
+def test_where():
+    a = np.array([1,0,0,1,1])
+    print(np.where(a>0))
+
+test_where()    
 
 
    

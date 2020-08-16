@@ -8,6 +8,7 @@ Created on Sun Dec 29 16:44:59 2019
 import numpy as np
 import time
 import time_series_correlation as tsc
+import pointwise_correlation as pc
 import matplotlib.pyplot as plt
 
 class poisson_process():
@@ -73,13 +74,13 @@ class poisson_process():
         ts_matrix=[[1 if i in pp else 0 for i in range(self.T)] for pp in pps]
         return np.array(ts_matrix)
     
-    def convert_to_sparse_time_series(self,binary_time_series):
+    def convert_to_dense_time_series(self,binary_time_series):
         bts=binary_time_series
-        sts=[[i for i in range(len(b)) if b[i]] for b in bts]
-        return sts
+        dts=[[i for i in range(len(b)) if b[i]] for b in bts]
+        return dts
         
 def compare_sparse_to_dense():
-    test_sparse_conversion=False
+    test_sparse_conversion=True
     
     if test_sparse_conversion:
         p=0.5   
@@ -92,8 +93,8 @@ def compare_sparse_to_dense():
         pp=poisson_process(2,10,lambdas,params)
         bts=pp.convert_to_binary_time_series(pp.ts_dict['X1'])
         print(bts)
-        sts=pp.convert_to_sparse_time_series(bts)
-        print(sts)
+        dts=pp.convert_to_dense_time_series(bts)
+        print(dts)
     else:
         number=500
         length=1000
@@ -126,7 +127,7 @@ def compare_sparse_to_dense():
                    'Use fixed means for setup' : False,
                    'random seed' : None,
                    'Test_mode' : False,
-                   'sparse' : False}
+                   'dense' : False}
         print("Starting first test...")
         td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=delta,axes=axes[0,:])
         start=time.time()
@@ -136,7 +137,7 @@ def compare_sparse_to_dense():
         t2=time.time()-start
         print("Completed in {0}".format(time.time()-start))
         print("Second test")
-        params_dict['sparse']=True
+        params_dict['dense']=True
         X1=pp.ts_dict['Y1']
         X2=pp.ts_dict['Y2']
         td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=delta,axes=axes[1,:])
@@ -149,20 +150,25 @@ def compare_sparse_to_dense():
             
 if __name__=='__main__':
     test=False
+    simplified=True
     if test:
         compare_sparse_to_dense()
         
     else:
+
         number=5000
-        length=1000
+        length=15000
         delta=int(np.sqrt(length))
-        p=0.1
+        p=0.01
         l=int(1/p)
+
         Y1=l
-        Y2=l
+        Y2=3
         Z=l
-        sparse=True
-        verbose=True
+
+
+        sparse=False
+        dense=not sparse
         
             
         lambdas = {'Y1': {'lambda':Y1,'baseline':False},
@@ -170,29 +176,53 @@ if __name__=='__main__':
                 #'Z': {'lambda':Z, 'baseline' : True}
                 }
         params={'mu':5,'sigma':3}
-        pp=poisson_process(number,length,lambdas=lambdas,params=params,verbose=verbose)
+
+        pp=poisson_process(number,length,lambdas=lambdas,params=params)
+        
+        
+        
+        p1=np.sum([len(x) for x in pp.ts_dict['Y1']])/(number*length)
+        print(p1)
+        p2=np.sum([len(x) for x in pp.ts_dict['Y2']])/(number*length)
+        print(p2)
+        
+        
         params_dict = {'T' : length,
                    'n' : number,
+                   'p1' : p1,
+                   'p2' : p2,
                    'Use population means' : False,
-                   'Use fixed means for setup' : False,
+                   'Use fixed means for setup' : True,
                    'random seed' : None,
                    'Test_mode' : False,
-                   'sparse' :  True}
+                   'sparse' :  sparse,
+                   'dense' : dense}
         
         f,axes=plt.subplots(2,2)
         
         print("Starting poisson test...")
         X1=pp.ts_dict['Y1']
         X2=pp.ts_dict['Y2']
-        p1=sum([len(x) for x in X1])/(number*length)
-        p2=sum([len(x) for x in X2])/(number*length)
+#<<<<<<< HEAD
+#        p1=sum([len(x) for x in X1])/(number*length)
+#        p2=sum([len(x) for x in X2])/(number*length)
 #        print(p2)
 #        print(p1)
-        td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=delta,axes=axes[0,:])
+#        td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=delta,axes=axes[0,:])
+#=======
+
+        #print(X1)
+        #print(X2)
+        if simplified:
+            td=pc.tweet_data([X1,X2],params=params_dict,disjoint_sets=True,delta=delta,axes=axes[0,:])
+        else:
+            td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=delta,axes=axes[0,:])
+#>>>>>>> simplifying_code
         start=time.time()
         #td.test_delta(max_delta=200,delta_step=5)
         td.display_Z_vals(ax=axes[0][1])
         
+<<<<<<< HEAD
         print("Starting reinitialised array test")
         params_dict = {'T' : length,
                    'n' : number,
@@ -201,15 +231,39 @@ if __name__=='__main__':
                    'random seed' : None,
                    'Test_mode' : False,
                    'sparse' :  False}  
+=======
+#<<<<<<< HEAD
+#        print("Starting reinitialised array test")
+#        params_dict = {'T' : length,
+#                   'n' : number,
+#                   'Use population means' : True,
+#                   'Use fixed means for setup' : False,
+#                   'random seed' : None,
+#                   'Test_mode' : False,
+#                   'sparse' :  True}  
+>>>>>>> new_testing_poisson
         
         #X1=np.array([np.random.choice([0,1],p=[1-p1,p1],size=[number,length])])
         #X2=np.array([np.random.choice([0,1],p=[1-p2,p2],size=[number,length])])
         #X1=pp.convert_to_binary_time_series(X1)
         #X2=pp.convert_to_binary_time_series(X2)
-        #td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=25,axes=axes[1,:])
-        #td.display_Z_vals(ax=axes[1][1])
-        #t2=time.time()-start
-        print("Completed in {0}".format(time.time()-start))
+#        td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=25,axes=axes[1,:])
+#=======
+#        print("Starting correlated test...")
+#        X1=pp.ts_dict['X1']
+#        X2=pp.ts_dict['X2']
+#        #print(X1)
+#        #print(X2)
+#        if simplified:
+#            td=pc.tweet_data([X1,X2],params=params_dict,disjoint_sets=True,delta=delta,axes=axes[0,:])
+#        else:
+#            td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=delta,axes=axes[0,:])
+#    
+#        #td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=25,axes=axes[1,:])
+#>>>>>>> simplifying_code
+#        td.display_Z_vals(ax=axes[1][1])
+#        t2=time.time()-start
+#        print("Completed in {0}".format(time.time()-start))
 
 
         

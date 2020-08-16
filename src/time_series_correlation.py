@@ -37,18 +37,18 @@ class pairwise_stats():
                  test=False,random_test=False,verbose=False,progress={}):
         if progress.get('one_percent_step'):
             if not progress.get('step')%progress.get('one_percent_step'):
-                print(progress.get('step')/progress.get('one_percent_step'))
+                print(progress.get('step')/progress.get('one_percent_step'),end=",")
             
         if test:
             self.verbose=True
             self.run_test(random_test=random_test)
-            self.sparse=False
+            self.dense=False
         else:
             self.ts1 = np.array(ts1)
             self.ts2 = np.array(ts2)
             self.population_ps=population_ps
-            self.sparse=population_ps[2].get('sparse')
-            if self.sparse:
+            self.dense=population_ps[2].get('dense')
+            if self.dense:
                 self.T=self.population_ps[2].get('T')
             else:
                 self.T = len(self.ts1)
@@ -56,7 +56,7 @@ class pairwise_stats():
             if population_ps[0] and population_ps[2].get('Use population means'):
                 self.n1=population_ps[0]*self.T
                 self.n2=population_ps[1]*self.T
-            elif self.sparse:
+            elif self.dense:
                 self.n1=len(self.ts1)
                 self.n2=len(self.ts2)                                   
             else:
@@ -66,14 +66,14 @@ class pairwise_stats():
             self.p1 = self.n1/self.T
             self.p2 = self.n2/self.T
 
-            if not len(self.ts1)==len(self.ts2) and not self.sparse:
+            if not len(self.ts1)==len(self.ts2) and not self.dense:
                 print("Warning - lengths of time series do not match")
                 
             self.delta = delta
             
             if marks_dict.get(delta):
                 self.marks_dict=marks_dict 
-            elif self.sparse:
+            elif self.dense:
                 self.marks_dict={}
             else:
                 self.marks_dict = {0:np.dot(self.ts1,self.ts2)}
@@ -107,19 +107,9 @@ class pairwise_stats():
             stats = pd.concat([self.stats,stats]) 
         print(stats)
     
-#    def count_marks_obsolete_slow_method(self):
-#        self.marks = np.dot(self.ts1,self.ts2)
-#        for shift in range(1,self.delta+1):
-#            self.marks += np.dot(self.ts1[shift:],self.ts2[:-shift])
-#            self.marks += np.dot(self.ts1[:-shift],self.ts2[shift:])
-#        self.marks_dict[self.delta]=self.marks
-    
     def count_marks(self):
-        if self.sparse:
-            self.count_marks_sparse(self.delta)
-            #print(self.ts1)
-            #print(self.ts2)
-            #print(self.marks)#########
+        if self.dense:
+            self.count_marks_dense(self.delta)
             return 0
         m1=self.marks_dict.get(self.delta)
         m=self.marks_dict.get(self.delta-1)
@@ -133,48 +123,14 @@ class pairwise_stats():
             for shift in range(1,self.delta+1):
                 self.marks += np.dot(self.ts1[shift:],self.ts2[:-shift])
                 self.marks += np.dot(self.ts1[:-shift],self.ts2[shift:])
-        #print(self.ts1)
-        #print(self.ts2)        
-        #print(self.marks)#############
     
-    def count_marks_sparse(self,max_delta,verbose=True):
+    def count_marks_dense(self,max_delta,verbose=True):
         if not max_delta or max_delta<self.delta:
             max_delta=self.delta
         marks=0
-        #delta_mark_dict=collections.defaultdict(int)
         for t in self.ts1:
             marks+=len(np.where(np.abs(self.ts2-t)<=max_delta)[0])
         self.marks=marks
-#            if t-self.ts2[index] > max_delta:
-#                if verbose:
-#                    print("ts1 value: {0}, too big compared to ts2 index: {1}".format(t,index))                   
-#                if index==len(self.ts2)-1:
-#                    continue
-#                if verbose:
-#                    print("incrementing index")
-#                index+=1
-#            elif self.ts2[index]-t > max_delta:
-#                if verbose:
-#                    print("ts2 index :{0}, too big compared to t {1}".format(index,t))
-#                    print("Moving to next ts1 entry")
-#                continue
-#            else:
-#                i=index
-#                while index<len(self.ts2)-1 and np.abs(t-self.ts2[index])<=max_delta:
-#                    if verbose:
-#                        print("Index is {0}. Storing mark in dictionary, incrementing index".format(index))
-#                    delta_mark_dict[np.abs(t-self.ts2[index])]+=1
-#                    index+=1
-#                print("Resetting index to {0}".format(i))
-#                index=i
-                
-#        running_total=0
-#        for i in range(max_delta+1):
-#            if i in delta_mark_dict.keys():
-#                running_total+=delta_mark_dict[i]
-#            self.marks_dict[i]=running_total
-#            
-#        self.marks=self.marks_dict[self.delta]
             
     
     def calculate_params(self,verbose=False):
@@ -239,24 +195,32 @@ class tweet_data():
     
     def __init__(self,tweet_matrices = [],population_ps = [None,None,{}],bernoulli=True,delta = 2,
                 disjoint_sets = False,test_delta = False,verbose=False,axes=[]):
+
+        self.start = time.time()
         self.axes = axes
         self.population_ps = population_ps
         self.verbose=verbose
         self.disjoint_sets=disjoint_sets
-        self.sparse=self.population_ps[2].get('sparse')
+        self.dense=self.population_ps[2].get('dense')
         self.T=self.population_ps[2].get('T')
         self.n=self.population_ps[2].get('n')
         self.ps=[[None for i in range(self.n)] for j in range(2)]
-        # if matrices are passed and are sparse, length of each time series should have been passed in population_ps
+        # if matrices are passed and are dense, length of each time series should have been passed in population_ps
         # if not, it is inferred as the largest final entry across all time series
         if len(tweet_matrices):
-            if self.sparse:
+            if self.dense:
                 if not self.T:
                     self.T=max([ts[-1] for i in range(len(tweet_matrices)) for ts in tweet_matrices[i]])
             else:
                 self.T = len(tweet_matrices[0][0])                
             self.tweet_matrices = tweet_matrices
             self.n = len(self.tweet_matrices[0])
+            if self.population_ps[2].get('Known probabilities array'):
+                self.ps = self.population_ps[2]['Known probabilities array']
+            elif self.population_ps[2].get('Use population means'):
+                print("*"*300)
+                print("WARNING - NO KNOWN PROBABILITIES SO CANNOT CALCULATE WITH FIXED MEANS.  CALCULATION WILL BE BASED ON INFERRED MEANS")
+                print("*"*300)
             self.MARKS = [[None for i in range(self.n)] for j in range(self.n)]
         else:
             if verbose:
@@ -271,16 +235,15 @@ class tweet_data():
         if not len(self.axes):
             f,self.axes=plt.subplots(1,len(self.tweet_matrices))
 
-        if True:
-            for i,m in enumerate(self.tweet_matrices):           
-                print("Analysis of tweet matrix {2}: {0} time series length {1}".format(len(m),self.T,i))
-            if not self.sparse:
+
+        for i,m in enumerate(self.tweet_matrices):           
+            print("Analysis of tweet matrix {2}: {0} time series length {1}".format(len(m),self.T,i))
+            if not self.dense:
                 probs = [np.sum(ts)/self.T for ts in m]
             else:
                 probs=[len(ts)/self.T for ts in m]
-                print(self.T)
             self.axes[0].hist(probs,bins=100)
-            self.axes[0].set_title("Proportion of 1s across all time series analysed")
+        self.axes[0].set_title("Proportion of 1s across all time series analysed")
 
         if test_delta:
             self.test_delta()               
@@ -291,58 +254,53 @@ class tweet_data():
         n=self.n
         if self.population_ps[2]['Use fixed means for setup']:
             ps=self.population_ps[:2]
-            self.tweet_matrices = [np.random.choice([0,1],p=[1-p,p],size=[n,T]) for p in ps]
+            if self.verbose:
+                print("Initialising with fixed means {0}".format(ps))
+            split_time=time.time()
+        #    self.tweet_matrices = [np.random.choice([0,1],p=[1-p,p],size=[n,T]) for p in ps]
             self.ps=[[p for i in range(n)] for p in ps]
+            self.tweet_matrices=[[np.random.choice(range(T),size=int(np.random.normal(T*p,np.sqrt(T*p*(1-p)))),replace=False) for i in range(n)] for p in ps]
+            if self.verbose:
+                print("Time to initialise : {0}".format(time.time()-split_time))
+
+            
         else:
             self.ps=[[np.random.chisquare(6)/30 for i in range(n)] for j in range(2)]
-            #if self.verbose:
-            #    print("{0} larger than 1".format(len([p for p in ps for ps in self.ps if p>=1])))
+            if self.verbose:
+                print("Initialising with randomly selected means from truncated chai squared distribution")
+            split_time=time.time()
             self.ps=[[p if p<1 else np.random.uniform(0.1,0.3) for p in ps] for ps in self.ps]
-            self.tweet_matrices = [[np.random.choice([0,1],p=[1-p,p],size=T) for p in ps] for ps in self.ps]
-        
-#    def calculate_marks(self,verbose=False):
-#        M=np.array(self.tweet_matrices[0])
-#        self.MARKS_DICT={}
-#        if self.disjoint_sets:
-#            N=np.transpose(self.tweet_matrices[1])
-#        else:
-#            N=np.transpose(self.tweet_matrices[0])
-#        marks=np.dot(M,N)
-#        self.MARKS_DICT[0]=np.copy(marks)
-#        for i in range(1,self.delta+1):
-#            print("Calculating marks for delta {0}".format(i))
-#            marks += np.dot(M[:,i:],N[:-i,:])
-#            marks += np.dot(M[:,:-i],N[i:,:])
-#            self.MARKS_DICT[i] = np.copy(marks)
-#        
-#        self.MARKS=np.copy(marks)
-#        if verbose:
-#            print(self.MARKS_DICT)  
-    
-#    def calculate_Z_vals(self,verbose=False):
-#        Ns=np.sum(self.tweet_matrices[0],axis=1)
-#        if self.disjoint_sets:
-#            N1s=np.sum(self.tweet_matrices[1],axis=1)            
-#        else:
-#            N1s = np.sum(self.tweet_matrices[0],axis=1)
-#        if verbose:
-#            print(self.tweet_matrices)
-#            print(Ns)
-#            print(N1s)
+            self.tweet_matrices=[[np.random.choice(range(T),size=int(np.random.normal(T*p,np.sqrt(T*p*(1-p)))),replace=False) for p in ps] for ps in self.ps]
+            if self.verbose:
+                print("Time to initialise : {0}".format(time.time()-split_time))
+            #print(self.tweet_matrices)   
+
                    
     def display_Z_vals(self,ax=None):
         self.tweet_matrix=self.tweet_matrices[0]
         if self.disjoint_sets:
             self.tweet_matrix1=self.tweet_matrices[1]
+            if self.verbose:
+                print("Calculating z-scores for pairs from disjoint sets")
+                #print("Params being used are {0}".format(self.population_ps))
+                #print("Random selection of probabilities set are {0}".format(self.ps[np.random.randint(2)][np.random.randint(self.n)]))
+            split_time=time.time()
             self.results = np.array([pairwise_stats(ts1=self.tweet_matrix[i],ts2=self.tweet_matrix1[i],delta=self.delta,progress={'step':i,'one_percent_step':int(self.n/100)},
                                 population_ps = [self.ps[0][i],self.ps[1][i],self.population_ps[2]], marks_dict={self.delta: self.MARKS[i][i]},verbose=True).Z_score
                                 for i in range(int(len(self.tweet_matrix)))])
+            if self.verbose:
+                print("Time to calculate : {0}".format(time.time()-split_time))
         else:
             self.tweet_matrix1=self.tweet_matrices[0]
             self.ps=[self.ps[0],self.ps[0]]
+            if self.verbose:
+                print("calculating z-scores for all pairs from single matrix")
             self.results = np.array([pairwise_stats(ts1=self.tweet_matrix[i],ts2=self.tweet_matrix[j],delta=self.delta,progress={'step':self.n*i+j+1,'one_percent_step':self.n*int(self.n/100+1)},
                                 marks_dict={self.delta: self.MARKS[i][j]},population_ps = [self.ps[0][i],self.ps[0][j],self.population_ps[2]]).Z_score
                                 for i in range(self.n-1) for j in range(i+1,self.n)])
+            if self.verbose:
+                print("Time to calulate : {0}".format(time.time()-split_time))
+                
         self.results = [r for r in self.results if r<np.inf]
         if ax==None:
             ax=self.axes[1]
@@ -428,17 +386,18 @@ class tweet_data():
 if __name__ == '__main__':
     TEST=False
     NEW_METHOD_TEST=False
+
     number=1000
-    length=1000
-    p1=0.01
-    p2=0.01
+    length=10000
+    p1=0.2
+    p2=0.1
     params_dict = {'T' : length,
                    'n' : number,
-                   'Use population means' : True,
-                   'Use fixed means for setup' : False,
+                   'Use population means' : False,
+                   'Use fixed means for setup' : True,
                        'random seed' : None,
                    'Test_mode' : False,
-                   'sparse' : False}
+                   'dense' : True}
     if TEST:
         ps = pairwise_stats(test=True,random_test=False,delta=5)
 
