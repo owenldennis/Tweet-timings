@@ -174,7 +174,15 @@ class tweet_data():
         self.disjoint_sets=disjoint_sets
         self.T=self.params.get('T')
         self.n=self.params.get('n')
-        self.ps=[[None for i in range(self.n)] for j in range(2)]
+        #self.ps=[[None for i in range(self.n)] for j in range(2)]
+        if 'Known probabilities array' in self.params.keys():
+            self.ps=self.params.get('Known probabilities array')
+        else:
+            ps=[self.params.get('p1'),self.params.get('p2')]
+            self.ps=[[p for i in range(self.n)] for p in ps]
+            
+        if verbose:
+            print("self.ps array check: first ten entries for each population are {0}".format(np.array(self.ps)[:2,:10]))               
         self.tweet_matrices = np.array(tweet_matrices)
         self.sparse=params['sparse']
         # if matrices are passed and are dense, length of each time series should have been passed in params
@@ -184,7 +192,7 @@ class tweet_data():
             if not self.T or not self.n:
                 self.T=max([ts[-1] for i in range(len(tweet_matrices)) for ts in tweet_matrices[i]])
                 self.n = len(self.tweet_matrices[0])
-            self.ps = self.params.get('Known probabilities array')
+            #self.ps = self.params.get('Known probabilities array')
             
             if self.sparse:
                 self.densify()
@@ -230,6 +238,8 @@ class tweet_data():
         self.tweet_matrix=self.tweet_matrices[0]
         if self.disjoint_sets:
             self.tweet_matrix1=self.tweet_matrices[1]
+            print(range(int(len(self.tweet_matrix))))
+            print(self.ps[0][0])
             self.results = np.array([pairwise_stats(ts1=self.tweet_matrix[i],ts2=self.tweet_matrix1[i],mean1=self.ps[0][i],mean2=self.ps[1][i],
                                                     delta=self.delta,progress={'step':i,'one_percent_step':int(self.n/100)},
                                                     params = self.params,verbose=True).Z_score
@@ -253,19 +263,7 @@ class tweet_data():
  
         print("Sample mean {0}, sample sigma {1}".format(np.mean(self.results),np.std(self.results)))
         print("Delta (max time-lag tested) is {0}".format(self.delta))
-#        if self.verbose:
-#            print("Statistics for randomly selected pair of time series")
-#            rans = np.random.choice(len(self.tweet_matrix),2)
-#            print("Entries {0} and {1} selected from total of {2} time series".format(rans[0],rans[1],len(self.tweet_matrix)))
-#            ps = pairwise_stats(delta=self.delta,ts1=self.tweet_matrix[rans[0]],ts2=self.tweet_matrix1[rans[1]],
-#                                params['p2'] = [self.ps[0][rans[0]],self.ps[1][rans[1]],self.params])
-#            ps.T=self.T
-#            ps.calculate_params(verbose=True)
-#            if self.params['Use fixed means for setup']:
-#                print("Probabilities of a particular entry in each time series is {0}".format([self.params['p1'],self.params['p2']]))
-#            else:
-#                print("Probabilities are taken from a chai-squared distribution with cut-off at 1")
-        
+
     
     def test_delta(self,max_delta=None,delta_step=1,ax=None):
         # creates a series of z-values based on increasing lag windows for each pair of time series
@@ -321,7 +319,7 @@ class tweet_data():
         plt.hist(corrs, bins = 200)  
 
 
-def test_sigma_with_inferred_means(xs=[100,200,300,400,500],params={},disjoint=False,verbose=False,axes=[]):
+def obsolete_test_sigma_with_inferred_means(xs=[100,200,300,400,500],params={},disjoint=False,verbose=False,axes=[]):
     """
     *Compares z_scores when means are inferred/known
     *Plot of sigma values for each against length of time series (given by parameter xs) is also shown
@@ -436,7 +434,7 @@ if __name__ == '__main__':
             axes=[]
         
         for i in range(repeats+1):
-            df=test_sigma_with_inferred_means(xs=xs,params=params_dict,disjoint=False,axes=axes,verbose=False)
+            df=obsolete_test_sigma_with_inferred_means(xs=xs,params=params_dict,disjoint=False,axes=axes,verbose=False)
             df1=pd.concat([df1,df],axis=0)
 
         df1.to_csv("{0}/Sigma_comparison{1}_repeated_runs_{2}_time series.csv".format(TEMP_DIR,i+1,number))

@@ -29,9 +29,9 @@ class poisson_process():
             print("Initialising for key {0}".format(key))
             self.create_poisson_processes(key,self.lambdas[key]['baseline'])
             print("Elapsed time: {0}".format(time.time()-self.start_time))
-        if self.ts_dict.get('Z'):
+        if 'Z' in self.ts_dict.keys():
             self.ts_dict['X1']=self.combine(self.ts_dict['Y1'],self.ts_dict['Z'])
-        if self.ts_dict.get('Z_star'):
+        if 'Z_star' in self.ts_dict.keys():
             self.ts_dict['X2']=self.combine(self.ts_dict['Y2'],self.ts_dict['Z_star'])
     
     def combine(self,ts1,ts2):
@@ -39,16 +39,21 @@ class poisson_process():
         
     def create_poisson_processes(self,key,create_delayed_also=False):
         l=self.lambdas[key]['lambda']
+        
+        
         # create sequence of time intervals that are expected to sum to n*T
         ts=np.random.exponential(l,size=(self.n,int(2*self.T/l)))
+        
         if self.verbose:
             print("Random exponential set of time intervals totalling {0} initialised".format(self.T))
             print("Elapsed time {0}.  Now cumulating...".format(time.time()-self.start_time))
         cts=np.array([np.cumsum(t) for t in ts])
+
         if self.verbose:
             print("Cumulative sum initialised to time {0}".format(self.T))
             print("Elapsed time {0}.  Now truncating....".format(time.time()-self.start_time)) 
         self.ts_dict[key]=self.truncate_to_T(cts)
+
         if self.verbose:
             print("Cumulative sums truncated")
         # create delayed time series if required  
@@ -67,7 +72,7 @@ class poisson_process():
             self.ts_dict[key+'_star']=self.truncate_to_T(cts_star)
             
     def truncate_to_T(self,cts):
-        return np.array([[c for c in ct if c<self.T] for ct in cts])
+        return np.array([np.sort(list(set([int(round(c)) for c in ct if c<self.T]))) for ct in cts])
         
     def convert_to_binary_time_series(self,poisson_process_interval_arrays):
         pps=poisson_process_interval_arrays
@@ -79,92 +84,23 @@ class poisson_process():
         dts=[[i for i in range(len(b)) if b[i]] for b in bts]
         return dts
         
-def compare_sparse_to_dense():
-    test_sparse_conversion=True
-    
-    if test_sparse_conversion:
-        p=0.5   
-        l=int(1/p)    
-        lambdas = {'Y1': {'lambda':l,'baseline':False},
-                'Y2': {'lambda':l,'baseline':False},
-                'Z': {'lambda':int(l/2), 'baseline' : True}
-                }
-        params={'mu':20,'sigma':3}
-        pp=poisson_process(2,10,lambdas,params)
-        bts=pp.convert_to_binary_time_series(pp.ts_dict['X1'])
-        print(bts)
-        dts=pp.convert_to_dense_time_series(bts)
-        print(dts)
-    else:
-        number=500
-        length=1000
-        delta=int(np.sqrt(length))
-        p=0.05
-        l=int(1/p)
-        Y1=l
-        Y2=l
-        Z=5000
-        f,axes=plt.subplots(2,2)
-        
-            
-        lambdas = {'Y1': {'lambda':Y1,'baseline':False},
-                'Y2': {'lambda':Y2,'baseline':False},
-                'Z': {'lambda':Z, 'baseline' : True}
-                }
-        params={'mu':5,'sigma':3}
-        pp=poisson_process(number,length,lambdas=lambdas,params=params)
-        ran=np.random.randint(pp.n)
-        for key in pp.ts_dict.keys():
-            print("Key {2}. First 10 entries in row {0} are {1}".format(ran,pp.ts_dict[key][ran][:10],key))
-        
-        
-        X1=pp.convert_to_binary_time_series(pp.ts_dict['X1'])
-        X2=pp.convert_to_binary_time_series(pp.ts_dict['X2'])
-
-        params_dict = {'T' : length,
-                   'n' : number,
-                   'Use population means' : False,
-                   'Use fixed means for setup' : False,
-                   'random seed' : None,
-                   'Test_mode' : False,
-                   'dense' : False}
-        print("Starting first test...")
-        td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=delta,axes=axes[0,:])
-        start=time.time()
-        #td.test_delta(max_delta=200,delta_step=5)
-        td.display_Z_vals()
-        #print(td.results)
-        t2=time.time()-start
-        print("Completed in {0}".format(time.time()-start))
-        print("Second test")
-        params_dict['dense']=True
-        X1=pp.ts_dict['Y1']
-        X2=pp.ts_dict['Y2']
-        td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=delta,axes=axes[1,:])
-        t1=time.time()
-        #td.test_delta(max_delta=200,delta_step=5)
-        td.display_Z_vals()
-        #print(td.results)
-        print("New method completed in {0}".format(time.time()-t1))
-        print("Old method completed in {0}".format(t2))
             
 if __name__=='__main__':
     test=False
-    simplified=True
     if test:
         compare_sparse_to_dense()
         
     else:
 
         number=5000
-        length=15000
+        length=10000
         delta=int(np.sqrt(length))
         p=0.01
         l=int(1/p)
 
         Y1=l
-        Y2=3
-        Z=l
+        Y2=10
+        Z=100
 
 
         sparse=False
@@ -175,11 +111,11 @@ if __name__=='__main__':
                 'Y2': {'lambda':Y2,'baseline':False},
                 #'Z': {'lambda':Z, 'baseline' : True}
                 }
-        params={'mu':5,'sigma':3}
+        params={'mu':5,'sigma':10}
 
         pp=poisson_process(number,length,lambdas=lambdas,params=params)
         
-        
+        #print(pp.ts_dict)
         
         p1=np.sum([len(x) for x in pp.ts_dict['Y1']])/(number*length)
         print(p1)
@@ -190,7 +126,7 @@ if __name__=='__main__':
         params_dict = {'T' : length,
                    'n' : number,
                    'p1' : p1,
-                   'p2' : p2,
+                   'p2' : p2, 
                    'Use population means' : False,
                    'Use fixed means for setup' : True,
                    'random seed' : None,
@@ -213,25 +149,14 @@ if __name__=='__main__':
 
         #print(X1)
         #print(X2)
-        if simplified:
-            td=pc.tweet_data([X1,X2],params=params_dict,disjoint_sets=True,delta=delta,axes=axes[0,:])
-        else:
-            td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=delta,axes=axes[0,:])
-#>>>>>>> simplifying_code
+
+        td=pc.tweet_data([X1,X2],params=params_dict,disjoint_sets=True,delta=delta,axes=axes[0,:])
+
         start=time.time()
         #td.test_delta(max_delta=200,delta_step=5)
         td.display_Z_vals(ax=axes[0][1])
         
-<<<<<<< HEAD
-        print("Starting reinitialised array test")
-        params_dict = {'T' : length,
-                   'n' : number,
-                   'Use population means' : False,
-                   'Use fixed means for setup' : False,
-                   'random seed' : None,
-                   'Test_mode' : False,
-                   'sparse' :  False}  
-=======
+
 #<<<<<<< HEAD
 #        print("Starting reinitialised array test")
 #        params_dict = {'T' : length,
@@ -241,7 +166,7 @@ if __name__=='__main__':
 #                   'random seed' : None,
 #                   'Test_mode' : False,
 #                   'sparse' :  True}  
->>>>>>> new_testing_poisson
+
         
         #X1=np.array([np.random.choice([0,1],p=[1-p1,p1],size=[number,length])])
         #X2=np.array([np.random.choice([0,1],p=[1-p2,p2],size=[number,length])])
