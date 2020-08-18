@@ -167,7 +167,6 @@ class tweet_data():
     
     def __init__(self,tweet_matrices = [],params = {},bernoulli=True,delta = 2,
                 disjoint_sets = False,test_delta = False,verbose=False,axes=[]):
-        print("HI - POINTWISE CORRELATION VERSION BEING USED...HOW EXCITING!")
         self.axes = axes
         self.params = params
         self.verbose=verbose
@@ -238,15 +237,15 @@ class tweet_data():
         self.tweet_matrix=self.tweet_matrices[0]
         if self.disjoint_sets:
             self.tweet_matrix1=self.tweet_matrices[1]
-            print(range(int(len(self.tweet_matrix))))
-            print(self.ps[0][0])
+            #print(range(int(len(self.tweet_matrix))))
+            #print(self.ps[0][0])
             self.results = np.array([pairwise_stats(ts1=self.tweet_matrix[i],ts2=self.tweet_matrix1[i],mean1=self.ps[0][i],mean2=self.ps[1][i],
                                                     delta=self.delta,progress={'step':i,'one_percent_step':int(self.n/100)},
                                                     params = self.params,verbose=True).Z_score
                                 for i in range(int(len(self.tweet_matrix)))])
         else:
             self.tweet_matrix1=self.tweet_matrices[0]
-            self.ps=[self.ps[0],self.ps[0]]
+            #self.ps=[self.ps[0],self.ps[0]]
             self.results = np.array([pairwise_stats(ts1=self.tweet_matrix[i],ts2=self.tweet_matrix[j],mean1=self.ps[0][i],mean2=self.ps[0][j],
                                                     delta=self.delta,progress={'step':self.n*i+j+1,'one_percent_step':self.n*int(self.n/100+1)},
                                                     params =self.params).Z_score

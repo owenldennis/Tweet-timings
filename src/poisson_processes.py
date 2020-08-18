@@ -55,7 +55,7 @@ class poisson_process():
         self.ts_dict[key]=self.truncate_to_T(cts)
 
         if self.verbose:
-            print("Cumulative sums truncated")
+            print("Cumulative sums rounded, ordered and truncated")
         # create delayed time series if required  
         if create_delayed_also:
             mu=self.params.get('mu')
@@ -86,21 +86,17 @@ class poisson_process():
         
             
 if __name__=='__main__':
-    test=False
-    if test:
-        compare_sparse_to_dense()
-        
-    else:
-
-        number=5000
-        length=10000
+    
+    if True:
+        number=50
+        length=1000
         delta=int(np.sqrt(length))
-        p=0.01
-        l=int(1/p)
+        #p=0.01
+        #l=int(1/p)
 
-        Y1=l
-        Y2=10
-        Z=100
+        Y1=20
+        Y2=20
+        Z=1000
 
 
         sparse=False
@@ -109,17 +105,17 @@ if __name__=='__main__':
             
         lambdas = {'Y1': {'lambda':Y1,'baseline':False},
                 'Y2': {'lambda':Y2,'baseline':False},
-                #'Z': {'lambda':Z, 'baseline' : True}
+                'Z': {'lambda':Z, 'baseline' : True}
                 }
-        params={'mu':5,'sigma':10}
+        params={'mu':5,'sigma':0.1}
 
         pp=poisson_process(number,length,lambdas=lambdas,params=params)
         
         #print(pp.ts_dict)
         
-        p1=np.sum([len(x) for x in pp.ts_dict['Y1']])/(number*length)
+        p1=np.sum([len(x) for x in pp.ts_dict['X1']])/(number*length)
         print(p1)
-        p2=np.sum([len(x) for x in pp.ts_dict['Y2']])/(number*length)
+        p2=np.sum([len(x) for x in pp.ts_dict['X2']])/(number*length)
         print(p2)
         
         
@@ -137,58 +133,16 @@ if __name__=='__main__':
         f,axes=plt.subplots(2,2)
         
         print("Starting poisson test...")
-        X1=pp.ts_dict['Y1']
-        X2=pp.ts_dict['Y2']
-#<<<<<<< HEAD
-#        p1=sum([len(x) for x in X1])/(number*length)
-#        p2=sum([len(x) for x in X2])/(number*length)
-#        print(p2)
-#        print(p1)
-#        td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=delta,axes=axes[0,:])
-#=======
+        X1=pp.ts_dict['X1']
+        X2=pp.ts_dict['X2']
 
-        #print(X1)
-        #print(X2)
-
-        td=pc.tweet_data([X1,X2],params=params_dict,disjoint_sets=True,delta=delta,axes=axes[0,:])
+        td=pc.tweet_data([X1,X2],params=params_dict,disjoint_sets=False,delta=delta,axes=axes[0,:])
 
         start=time.time()
         #td.test_delta(max_delta=200,delta_step=5)
         td.display_Z_vals(ax=axes[0][1])
         
 
-#<<<<<<< HEAD
-#        print("Starting reinitialised array test")
-#        params_dict = {'T' : length,
-#                   'n' : number,
-#                   'Use population means' : True,
-#                   'Use fixed means for setup' : False,
-#                   'random seed' : None,
-#                   'Test_mode' : False,
-#                   'sparse' :  True}  
-
-        
-        #X1=np.array([np.random.choice([0,1],p=[1-p1,p1],size=[number,length])])
-        #X2=np.array([np.random.choice([0,1],p=[1-p2,p2],size=[number,length])])
-        #X1=pp.convert_to_binary_time_series(X1)
-        #X2=pp.convert_to_binary_time_series(X2)
-#        td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=25,axes=axes[1,:])
-#=======
-#        print("Starting correlated test...")
-#        X1=pp.ts_dict['X1']
-#        X2=pp.ts_dict['X2']
-#        #print(X1)
-#        #print(X2)
-#        if simplified:
-#            td=pc.tweet_data([X1,X2],params=params_dict,disjoint_sets=True,delta=delta,axes=axes[0,:])
-#        else:
-#            td=tsc.tweet_data([X1,X2],population_ps=[p1,p2,params_dict],disjoint_sets=True,delta=delta,axes=axes[0,:])
-#    
-#        #td=tsc.tweet_data([X1,X2],population_ps=[None,None,params_dict],disjoint_sets=True,delta=25,axes=axes[1,:])
-#>>>>>>> simplifying_code
-#        td.display_Z_vals(ax=axes[1][1])
-#        t2=time.time()-start
-#        print("Completed in {0}".format(time.time()-start))
 
 
         
