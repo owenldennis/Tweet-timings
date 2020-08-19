@@ -74,15 +74,15 @@ class poisson_process():
     def truncate_to_T(self,cts):
         return np.array([np.sort(list(set([int(round(c)) for c in ct if c<self.T]))) for ct in cts])
         
-    def convert_to_binary_time_series(self,poisson_process_interval_arrays):
-        pps=poisson_process_interval_arrays
-        ts_matrix=[[1 if i in pp else 0 for i in range(self.T)] for pp in pps]
+    def convert_to_binary_time_series(self,dense_time_series_array):
+        dts=dense_time_series_array
+        ts_matrix=[[1 if i in ts else 0 for i in range(self.T)] for ts in dts]
         return np.array(ts_matrix)
     
     def convert_to_dense_time_series(self,binary_time_series):
         bts=binary_time_series
         dts=[[i for i in range(len(b)) if b[i]] for b in bts]
-        return dts
+        return np.array(dts)
         
             
 if __name__=='__main__':

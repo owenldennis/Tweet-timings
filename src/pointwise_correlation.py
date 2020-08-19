@@ -29,6 +29,8 @@ ROOT_DIR="C:/Users/owen/Machine learning projects/Luc_tweet project"
 RESULTS_DIR="{0}/Results" .format(ROOT_DIR)
 TEMP_DIR="{0}/Temp".format(ROOT_DIR)
 
+EMPTY_TIME_SERIES_COUNT = 0
+SHORT_TIME_SERIES_Z_SCORES = []
 
 class event_time_series():
     """
@@ -57,8 +59,15 @@ class time_series():
 
         self.t_series = np.sort(t_series)
         self.T = T
-
         self.population_mean = population_mean
+        # to avoid empty time series, if one is passed then add a single entry in a random position. Population mean must also be adjusted
+        if not len(self.t_series):
+            #self.t_series = np.array([np.random.randint(self.T)])
+            #print("Empty time series found - now looks like {0}".format(self.t_series))
+            #self.population_mean = 1/self.T
+            global EMPTY_TIME_SERIES_COUNT
+            EMPTY_TIME_SERIES_COUNT += 1
+
         self.individual_mean = len(self.t_series)/self.T
         
         self.poisson_params = poisson_params
@@ -77,31 +86,34 @@ class pairwise_stats():
     *   
     """
     
-    def __init__(self,ts1 : time_series, ts2 : time_series,params={},delta=1,marks_dict={},
+    def __init__(self,t_series1 : time_series, t_series2 : time_series,params={},delta=1,marks_dict={},
                  test=False,random_test=False,verbose=False,progress={}):
         if progress.get('one_percent_step'):
             if not progress.get('step')%progress.get('one_percent_step'):
                 print(progress.get('step')/progress.get('one_percent_step'),end = ',')
         
-        if True:
-            self.ts1 = np.array(ts1.t_series)
-            self.ts2 = np.array(ts2.t_series)
+        self.ts1 = np.array(t_series1.t_series)
+        self.ts2 = np.array(t_series2.t_series)
+        # if one or other time series is empty, z_score is unreliable
+        if not (len(self.ts1) and len(self.ts2)):
+            self.Z_score = np.inf
+        else:
             self.params=params
             self.sparse=params.get('sparse')
             self.T=self.params.get('T')
             
-            assert(self.T == ts1.T)
-            assert(self.T == ts2.T)
+            assert(self.T == t_series1.T)
+            assert(self.T == t_series2.T)
             # if population probabilities are given and are to be used, store - otherwise estimate from time series 
             if self.params.get('Use population means'):
-                self.n1=ts1.population_mean*ts1.T
-                self.n2=ts2.population_mean*ts2.T
+                self.n1=t_series1.population_mean*t_series1.T
+                self.n2=t_series2.population_mean*t_series2.T
             else:
-                self.n1=ts1.individual_mean*ts1.T
-                self.n2=ts2.individual_mean*ts2.T
+                self.n1=t_series1.individual_mean*t_series1.T
+                self.n2=t_series2.individual_mean*t_series2.T
                                                    
-            self.p1 = self.n1/ts1.T
-            self.p2 = self.n2/ts2.T
+            self.p1 = self.n1/t_series1.T
+            self.p2 = self.n2/t_series2.T
                 
             self.delta = delta
             
@@ -112,6 +124,13 @@ class pairwise_stats():
                 self.marks_dict={}  
             self.verbose=verbose
             self.calculate_params()
+            if len(self.ts1)<4 or len(self.ts2)<4:
+                #print(self.ts1)
+                #print(self.ts2)
+                global SHORT_TIME_SERIES_Z_SCORES
+                SHORT_TIME_SERIES_Z_SCORES.append((len(self.ts1),len(self.ts2),self.Z_score))
+                self.Z_score = np.inf
+            
 
 
     def run_test(self,ts1=[],ts2=[],random_test=True):
@@ -153,7 +172,7 @@ class pairwise_stats():
         self.count_marks()
         w=2*self.delta+1
         pq=self.p1*self.p2
-        # calculation for sigma if using known probabilities to give means
+        # calculation for sigma if using known population probabilities to give means
         if self.params.get('Use population means'):
             self.var = w*pq*(1-pq)+2*self.delta*w*pq*(self.p1+self.p2-2*pq)
             self.sigma = np.sqrt(self.var)*np.sqrt(self.T)
@@ -221,25 +240,25 @@ class tweet_data():
         self.disjoint_sets=disjoint_sets
         self.T=self.params.get('T')
         self.n=self.params.get('n')
-        #self.ps=[[None for i in range(self.n)] for j in range(2)]
-        if 'Known probabilities array' in self.params.keys():
-            self.ps=self.params.get('Known probabilities array')
-        else:
-            ps=[self.params.get('p1'),self.params.get('p2')]
-            self.ps=[[p for i in range(self.n)] for p in ps]
+        # store population means for all time series
+        #if 'Known probabilities array' in self.params.keys():
+        #    self.ps=self.params.get('Known probabilities array')
+        #else:
+        #    ps=[self.params.get('p1'),self.params.get('p2')]
+        #    self.ps=[[p for i in range(self.n)] for p in ps]
             
-        if verbose:
-            print("self.ps array check: first ten entries for each population are {0}".format(np.array(self.ps)[:2,:10]))               
+        #if verbose:
+        #    print("self.ps array check: first ten entries for each population are {0}".format(np.array(self.ps)[:2,:10]))               
         self.tweet_matrices = np.array(tweet_matrices)
         self.sparse=params['sparse']
-        # if matrices are passed and are dense, length of each time series should have been passed in params
+        
+        # if t_series objects are passed they must have dense time series, length of each time series should have been passed in params
         # if not, it is inferred as the largest final entry across all time series
-        # if matrices passed are sparse, they are densified
         if len(self.tweet_matrices):
             if not self.T or not self.n:
                 self.T=max([ts[-1] for i in range(len(self.tweet_matrices)) for ts in self.tweet_matrices[i].t_series])
                 self.n = len(self.tweet_matrices[0])
-            #self.ps = self.params.get('Known probabilities array')
+
         else:
             if verbose:
                 print("About to initialise tweet matrix")    
@@ -278,26 +297,26 @@ class tweet_data():
         T=self.T
         n=self.n
         if self.params['Use fixed means for setup']:
-            ps=[self.params['p1'],self.params['p2']]
+            means=[self.params['p1'],self.params['p2']]
             if self.verbose:
-                print("Initialising with fixed means {0}".format(ps))
+                print("Initialising with fixed means {0}".format(means))
             split_time=time.time()
-            self.ps=[[p for i in range(n)] for p in ps]
+            #mean_arrays=[[p for i in range(n)] for p in means]
             tweet_matrices=[[np.random.choice(range(T),size=int(np.random.normal(T*p,np.sqrt(T*p*(1-p)))),replace=False) 
-                                    for i in range(n)] for p in ps]
-            self.tweet_matrices = [[time_series(tweet_matrices[i][j],ps[i],T) for j in range(n)] for i in range(len(tweet_matrices))]
+                                    for i in range(n)] for p in means]
+            self.tweet_matrices = [[time_series(tweet_matrices[i][j],means[i],T) for j in range(n)] for i in range(len(tweet_matrices))]
             if self.verbose:
                 print("Time to initialise : {0}".format(time.time()-split_time))
 
             
         else:
-            self.ps=[[np.random.chisquare(6)/30 for i in range(n)] for j in range(2)]
+            chi_means=[[np.random.chisquare(6)/30 for i in range(n)] for j in range(2)]
             if self.verbose:
                 print("Initialising with randomly selected means from truncated chai squared distribution")
             split_time=time.time()
-            self.ps=[[p if p<1 else np.random.uniform(0.1,0.3) for p in ps] for ps in self.ps]
-            tweet_matrices=[[np.random.choice(range(T),size=int(np.random.normal(T*p,np.sqrt(T*p*(1-p)))),replace=False) for p in ps] for ps in self.ps]
-            self.tweet_matrices = [[time_series(tweet_matrices[i][j],self.ps[i][j],T) for j in range(n)] for i in range(len(tweet_matrices))]
+            mean_arrays=[[p if p<1 else np.random.uniform(0.1,0.3) for p in means] for means in chi_means]
+            tweet_matrices=[[np.random.choice(range(T),size=int(np.random.normal(T*p,np.sqrt(T*p*(1-p)))),replace=False) for p in means] for means in mean_arrays]
+            self.tweet_matrices = [[time_series(tweet_matrices[i][j],mean_arrays[i][j],T) for j in range(n)] for i in range(len(tweet_matrices))]
 
             if self.verbose:
                 print("Time to initialise : {0}".format(time.time()-split_time))        
@@ -311,13 +330,13 @@ class tweet_data():
         self.tweet_matrix=self.tweet_matrices[0]
         if self.disjoint_sets:
             self.tweet_matrix1=self.tweet_matrices[1]
-            self.results = np.array([pairwise_stats(ts1=self.tweet_matrix[i],ts2=self.tweet_matrix1[i],
+            self.results = np.array([pairwise_stats(self.tweet_matrix[i],self.tweet_matrix1[i],
                                                     delta=self.delta,progress={'step':i,'one_percent_step':int(self.n/100)},
                                                     params = self.params,verbose=True).Z_score
                                 for i in range(int(len(self.tweet_matrix)))])
         else:
             self.tweet_matrix1=self.tweet_matrices[0]
-            self.results = np.array([pairwise_stats(ts1=self.tweet_matrix[i],ts2=self.tweet_matrix[j],
+            self.results = np.array([pairwise_stats(self.tweet_matrix[i],self.tweet_matrix[j],
                                                     delta=self.delta,progress={'step':self.n*i+j+1,'one_percent_step':self.n*int(self.n/100+1)},
                                                     params =self.params).Z_score
                                 for i in range(self.n-1) for j in range(i+1,self.n)])
@@ -348,7 +367,7 @@ class tweet_data():
             for i in range(len(M)):
                 if not i%int(len(M)/100+1):
                     print("{0}% complete".format(i*100/len(M)))
-                ps = pairwise_stats(ts1 = M[i],ts2 = N[i],params=self.params)
+                ps = pairwise_stats(M[i],N[i],params=self.params)
                 ps.calculate_z_series(deltas=deltas)
                 if not np.inf in ps.z_series:
                     z_results.append(ps.z_series)
@@ -358,7 +377,7 @@ class tweet_data():
                 if not i%int(len(M)/100+1):
                     print("{0}% complete".format(i*100/len(M)))
                 for j in range(i+1,len(M)):
-                    ps = pairwise_stats(ts1 = M[i],ts2 = M[j],params=self.params)
+                    ps = pairwise_stats(M[i],M[j],params=self.params)
                     ps.calculate_z_series(deltas=deltas)
                     if not np.inf in ps.z_series:
                         z_results.append(ps.z_series) 
