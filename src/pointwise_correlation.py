@@ -77,7 +77,7 @@ class time_series():
         self.std_lag = poisson_params.get('std_lag')
         
         #print("Time series is : {0} with pop mean {1} and individual mean {2}".format(self.t_series,self.population_mean,self.individual_mean))
-        
+    
         
 class pairwise_stats():
     """ Calculate parameters and z-scores based on Messager et al (2019) for two time series of the same length
@@ -123,7 +123,11 @@ class pairwise_stats():
             else:
                 self.marks_dict={}  
             self.verbose=verbose
+            
+            
             self.calculate_params()
+            
+            
             if len(self.ts1)<4 or len(self.ts2)<4:
                 #print(self.ts1)
                 #print(self.ts2)
@@ -169,7 +173,9 @@ class pairwise_stats():
 
     def calculate_params(self,verbose=False):
 #        inf_z_score = False
+        
         self.count_marks()
+        
         w=2*self.delta+1
         pq=self.p1*self.p2
         # calculation for sigma if using known population probabilities to give means

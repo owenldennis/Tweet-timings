@@ -36,6 +36,18 @@ class poisson_process():
     
     def combine(self,ts1,ts2):
         return [np.sort(list(set(np.append(t,ts2[i])))) for i,t in enumerate(ts1)]
+      
+    def create_lagging_population(self,event_time_series,noise_time_series_key):
+
+        mus = self.params['mus']
+        sigmas = self.params['sigmas']
+        noise_time_series = self.ts_dict['noise_time_series_key']
+        
+        lagging_population = [[event+np.random.normal(mus[i],sigmas[i]) for event in event_time_series] for i in range(self.n)]
+        lagging_population = self.truncate_to_T(lagging_population)
+        self.ts_dict['Lagging population'] = self.combine(lagging_population,noise_time_series)
+        self.ts_dict['Lagging population mean'] = np.mean([len(ts) for ts in self.ts_dict['Lagging population']])/self.T
+        
         
     def create_poisson_processes(self,key,create_delayed_also=False):
         lambdas=self.lambdas[key]['lambda']
@@ -57,15 +69,15 @@ class poisson_process():
             print("Cumulative sums rounded, ordered and truncated")
         # create delayed time series if required  
         if create_delayed_also:
-            mu=self.params.get('mu')
+            mus=self.params.get('mus')
             if mu==None:
                 mu=0
                 sigma=1
             else:
-                sigma=self.params.get('sigma')
+                sigmas=self.params.get('sigmas')
                 if self.verbose:
                     print("Now created lagging time series...")
-            cts_star=[[c+np.random.normal(mu,sigma) for c in ct] for ct in cts]
+            cts_star=[[c+np.random.normal(mus[i],sigmas[i]) for c in cts[i]] for i in range(len(cts))]
             if self.verbose:
                 print("Lag added.  Elapsed time {0}.  Now truncating...".format(time.time()-self.start_time))
             self.ts_dict[key+'_star']=self.truncate_to_T(cts_star)
@@ -93,8 +105,8 @@ if __name__=='__main__':
         #p=0.01
         #l=int(1/p)
 
-        Y1=[20]*number
-        print(Y1)
+        Y1=[50]*number
+        #print(Y1)
         Y2=[20]*number
         Z=[1000]*number
 
@@ -104,19 +116,26 @@ if __name__=='__main__':
         
             
         lambdas = {'Y1': {'lambda':Y1,'baseline':False},
-                'Y2': {'lambda':Y2,'baseline':False},
-                'Z': {'lambda':Z, 'baseline' : True}
+                #'Y2': {'lambda':Y2,'baseline':False},
+                #'Z': {'lambda':Z, 'baseline' : False}
                 }
-        params={'mu':5,'sigma':0.1}
+        params={'mus':[5]*number,'sigmas':[0.1]*number}
 
         pp=poisson_process(number,length,lambdas=lambdas,params=params)
+        print(pp.ts_dict.keys())
         
-        #print(pp.ts_dict)
         
         p1=np.sum([len(x) for x in pp.ts_dict['X1']])/(number*length)
         print(p1)
         p2=np.sum([len(x) for x in pp.ts_dict['X2']])/(number*length)
         print(p2)
+        known_probs_array = [[p1]*number,[p2]*number]
+        #print(known_probs_array)
+        tweet_matrices = [pp.ts_dict['X1'], pp.ts_dict['X2']]
+        
+        ts_matrices=[[pc.time_series(tweet_matrices[i][j],known_probs_array[i][j],length) for j in range(number)] 
+                             for i in range(len(tweet_matrices))]
+        
         
         
         params_dict = {'T' : length,
@@ -124,7 +143,7 @@ if __name__=='__main__':
                    'p1' : p1,
                    'p2' : p2, 
                    'Use population means' : False,
-                   'Use fixed means for setup' : True,
+                   'Use fixed means for setup' : False, # must be true if using population means for z-score calculations
                    'random seed' : None,
                    'Test_mode' : False,
                    'sparse' :  sparse,
@@ -133,10 +152,10 @@ if __name__=='__main__':
         f,axes=plt.subplots(2,2)
         
         print("Starting poisson test...")
-        X1=pp.ts_dict['X1']
-        X2=pp.ts_dict['X2']
+        #X1=pp.ts_dict['X1']
+        #X2=pp.ts_dict['X2']
 
-        td=pc.tweet_data([X1,X2],params=params_dict,disjoint_sets=False,delta=delta,axes=axes[0,:])
+        td=pc.tweet_data(ts_matrices,params=params_dict,disjoint_sets=False,delta=delta,axes=axes[0,:])
 
         start=time.time()
         #td.test_delta(max_delta=200,delta_step=5)
