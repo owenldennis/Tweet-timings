@@ -133,31 +133,31 @@ class pairwise_stats():
             
 
 
-    def run_test(self,ts1=[],ts2=[],random_test=True):
+#    def run_test(self,ts1=[],ts2=[],random_test=True):
         # calculate total marks 
-        if not len(ts1):
-            if random_test:
-                self.ts1 = [np.random.randint(2) for i in range(20)]
-                self.ts2 = [np.random.randint(2) for i in range(20)]
-            else:
-                self.ts1 = np.array([1,0,0,1,1,0,0,0,0,0,0,0,0,1,1])
-                self.ts2 = np.array([1,1,0,0,0,0,0,1,0,0,0,1,0,0,1])
-                #self.ts1 = TEST_MATRIX[0]
-                #self.ts2 = TEST_MATRIX[1]
-        self.p1 = sum(self.ts1)/len(self.ts1)
-        self.p2 = sum(self.ts2)/len(self.ts2)
-        self.T = len(self.ts1)
-        self.marks_dict = {0:np.dot(self.ts1,self.ts2)}
-        print("First test time series is {0}".format(self.ts1))
-        print("Other test time series is {0}".format(self.ts2))
-        print("Counting marks...")
-        self.delta = 0
-        self.calculate_params()
-        stats = self.stats
-        for self.delta in range(1,len(self.ts1)):           
-            self.calculate_params()
-            stats = pd.concat([self.stats,stats]) 
-        print(stats)
+##        if not len(ts1):
+#            if random_test:
+#                self.ts1 = [np.random.randint(2) for i in range(20)]
+#                self.ts2 = [np.random.randint(2) for i in range(20)]
+#            else:
+#                self.ts1 = np.array([1,0,0,1,1,0,0,0,0,0,0,0,0,1,1])
+#                self.ts2 = np.array([1,1,0,0,0,0,0,1,0,0,0,1,0,0,1])
+#                #self.ts1 = TEST_MATRIX[0]
+#                #self.ts2 = TEST_MATRIX[1]
+#        self.p1 = sum(self.ts1)/len(self.ts1)
+#        self.p2 = sum(self.ts2)/len(self.ts2)
+#        self.T = len(self.ts1)
+#        self.marks_dict = {0:np.dot(self.ts1,self.ts2)}
+#        print("First test time series is {0}".format(self.ts1))
+#        print("Other test time series is {0}".format(self.ts2))
+#        print("Counting marks...")
+#        self.delta = 0
+#        self.calculate_params()
+#        stats = self.stats
+#        for self.delta in range(1,len(self.ts1)):           
+#            self.calculate_params()
+#            stats = pd.concat([self.stats,stats]) 
+#        print(stats)
         
     def count_marks(self,max_delta=None,verbose=False):
         if not max_delta or max_delta<self.delta:
@@ -168,7 +168,7 @@ class pairwise_stats():
         self.marks=marks
 
     def calculate_params(self,verbose=False):
-        inf_z_score = False
+#        inf_z_score = False
         self.count_marks()
         w=2*self.delta+1
         pq=self.p1*self.p2
@@ -191,14 +191,14 @@ class pairwise_stats():
         self.mu = self.p1*self.p2*(self.T*(2*self.delta+1)-self.delta*(self.delta+1))
         if self.sigma:
             self.Z_score = (self.marks-self.mu)/(self.sigma)
-        else:
-            print("Infinite Z-score given in pairwise_stats.calculate_params method.")
-            inf_z_score = True
-            self.Z_score = np.inf
+#        else:
+#            print("Infinite Z-score given in pairwise_stats.calculate_params method.")
+#            inf_z_score = True
+#            self.Z_score = np.inf
         self.stats = pd.DataFrame([[self.mu,self.sigma,self.sigma*np.sqrt(self.T),self.marks,self.Z_score]],index = [''],columns = ['Mean','Sigma','Sigma*sqrt(T)','Total','Z score'])          
-        if verbose or inf_z_score:
+        if verbose:# or inf_z_score:
             self.display_stats()
-            inf_z_score = False
+ #           inf_z_score = False
             
     def display_stats(self):
         print(pd.DataFrame([[self.p1,len(self.ts1)],[self.p2,len(self.ts2)]],index = ['Time series 1','Time series 2'],
