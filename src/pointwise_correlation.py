@@ -344,7 +344,7 @@ class tweet_data():
         if ax==None:
             ax=self.axes[1]
         ax.hist(self.results,bins = 200,label='{0}'.format(self.T))
-        if self.params['p1'] and self.params.get("Use population means"):
+        if self.params.get("Use population means"):
             s = "Z-scores based on known population means."
         else:
             s="Z-scores based on individual estimates of means."
