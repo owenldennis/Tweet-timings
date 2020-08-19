@@ -38,11 +38,10 @@ class poisson_process():
         return [np.sort(list(set(np.append(t,ts2[i])))) for i,t in enumerate(ts1)]
         
     def create_poisson_processes(self,key,create_delayed_also=False):
-        l=self.lambdas[key]['lambda']
-        
-        
+        lambdas=self.lambdas[key]['lambda']
         # create sequence of time intervals that are expected to sum to n*T
-        ts=np.random.exponential(l,size=(self.n,int(2*self.T/l)))
+        ts=[np.random.exponential(l,size=(int(2*self.T/l))) for l in lambdas]
+        #ts=np.random.exponential(l,size=(self.n,int(2*self.T/l)))
         
         if self.verbose:
             print("Random exponential set of time intervals totalling {0} initialised".format(self.T))
@@ -94,9 +93,10 @@ if __name__=='__main__':
         #p=0.01
         #l=int(1/p)
 
-        Y1=20
-        Y2=20
-        Z=1000
+        Y1=[20]*number
+        print(Y1)
+        Y2=[20]*number
+        Z=[1000]*number
 
 
         sparse=False
