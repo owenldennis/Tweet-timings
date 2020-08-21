@@ -141,7 +141,12 @@ def test_where():
     a = np.array([1,0,0,1,1])
     print(np.where(a>0))
 
-test_where()    
+def test_zip(a):
+    print(a.values())
+    print(list(zip(*a.values())))
+
+a={'mus' :[1,2,3],'sigmas' :[4,5,6]} 
+test_zip(a)  
 
 
    

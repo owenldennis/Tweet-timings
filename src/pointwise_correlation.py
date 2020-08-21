@@ -38,8 +38,8 @@ class event_time_series():
     * each time_series has an event_time_series from which a lag is added
     """
     
-    def __init__(self,time_series):
-        self.time_series = time_series
+    def __init__(self,t_series):
+        self.t_series = t_series
 
 class time_series():
     """
@@ -55,7 +55,7 @@ class time_series():
     """
     
     def __init__(self,t_series,population_mean,T,event_t_series=None,
-                 poisson_params = {}):
+                 poisson_params = []):
 
         self.t_series = np.sort(t_series)
         self.T = T
@@ -73,8 +73,8 @@ class time_series():
         self.poisson_params = poisson_params
         self.event_t_series = event_t_series
         
-        self.mean_lag = poisson_params.get('mean_lag')
-        self.std_lag = poisson_params.get('std_lag')
+        #self.mean_lag = poisson_params[0]
+        #self.std_lag = poisson_params[1]
         
         #print("Time series is : {0} with pop mean {1} and individual mean {2}".format(self.t_series,self.population_mean,self.individual_mean))
     
@@ -197,10 +197,10 @@ class pairwise_stats():
         self.mu = self.p1*self.p2*(self.T*(2*self.delta+1)-self.delta*(self.delta+1))
         if self.sigma:
             self.Z_score = (self.marks-self.mu)/(self.sigma)
-#        else:
-#            print("Infinite Z-score given in pairwise_stats.calculate_params method.")
+        else:
+            print("Infinite Z-score given in pairwise_stats.calculate_params method.")
 #            inf_z_score = True
-#            self.Z_score = np.inf
+            self.Z_score = np.inf
         self.stats = pd.DataFrame([[self.mu,self.sigma,self.sigma*np.sqrt(self.T),self.marks,self.Z_score]],index = [''],columns = ['Mean','Sigma','Sigma*sqrt(T)','Total','Z score'])          
         if verbose:# or inf_z_score:
             self.display_stats()

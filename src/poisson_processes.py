@@ -23,11 +23,13 @@ class poisson_process():
         if len(self.betas) and not self.n == len(self.betas):
             print("Expected {0} beta values, but only {1} values passed.  Initialising all time series with beta parameter {2}".format(self.n,len(betas),betas[0]))
             self.betas = [betas[0]]*self.n
+        #elif len(self.betas):
+        self.population_probabilities = [1/b for b in self.betas]
         self.lag_params=lag_params
         self.t_series_array = []
-        self.population_probabilities = [1/b for b in self.betas]
+
         self.verbose=verbose
-        self.event_time_series = []
+        self.event_time_series = None
         self.prior_process_object = prior_process_object
         if self.prior_process_object:
             self.create_lagging_poisson_process()
@@ -35,7 +37,11 @@ class poisson_process():
             self.create_random_poisson_process()
         else:
             print("Unable to initialise - no beta paramters passed and no prior object passed")
-
+        #if not self.n == len(self.betas):
+        self.population_probabilities=[np.mean([len(t_series) for t_series in self.t_series_array])/self.T]*self.n
+        #self.estimated_population_probabilities = [np.mean([len(t_series) for t_series in self.t_series_array])/self.T]*self.n
+        self.update()        
+    
     def create_random_poisson_process(self):
         # create sequence of time intervals that are expected to sum to n*T
         ts=[np.random.exponential(b,size=(int(2*self.T/b))) for b in self.betas]
@@ -63,7 +69,9 @@ class poisson_process():
         if not (self.n == len(mus) and self.n == len(sigmas)):
             print("Expected {0} mu/sigma values but {1}/{2} passed.  All time series allocated mean/std lag {3}/{4}".format(self.n,len(mus),len(sigmas),mus[0],sigmas[0]))
             mus = [mus[0]]*self.n
+            self.lag_params['mus']=mus
             sigmas = [sigmas[0]]*self.n
+            self.lag_params['sigmas']=sigmas
             
         if not (len(prior_array) == self.n):
             print("Creating lagging time series population based on single event time series")
@@ -72,15 +80,34 @@ class poisson_process():
             self.population_probabilities=[self.prior_process_object.population_probabilities[0]]*self.n
         else:
             print("Creating lagging time series population based on prior population the same size")                      
-        #noise_time_series = self.poisson_process_dict['noise_time_series_key']
-        #print(prior_array)
-        #print(mus)
-        #print(sigmas)
+
         lagging_population = [[event+np.random.normal(mus[i],sigmas[i]) for event in prior_array[i]] for i in range(self.n)]
         self.t_series_array = self.truncate_to_T(lagging_population)
-#        self.poisson_process_dict['Lagging population'] = self.combine(lagging_population,noise_time_series)
-#        self.poisson_process_dict['Lagging population mean'] = np.mean([len(ts) for ts in self.poisson_process_dict['Lagging population']])/self.T
 
+    def update(self,pp_to_copy=None):
+        if pp_to_copy:
+            ts1 = self.t_series_array
+            p1 = self.population_probabilities
+            ts2 = pp_to_copy.t_series_array
+            p2 = pp_to_copy.population_probabilities
+        
+            assert len(p1) == len(p2)
+            assert self.T == pp_to_copy.T
+            assert len(ts1) == len(ts2)
+        
+            combined_ts = [np.sort(list(set(np.append(t,ts2[i])))) for i,t in enumerate(ts1)]
+            self.t_series_array = combined_ts
+            combined_ps = [p1[i] + p2[i] - p1[i]*p2[i] for i in range(len(p1))]
+            self.population_probabilities = combined_ps
+        
+        #if self.prior_process_object:
+        #    poisson_lag_params = list(zip(self.lag_params['mus'],self.lag_params['sigmas']))
+        #else:
+        #    poisson_lag_params=[None]*self.n
+        self.time_series_objects = [pc.time_series(self.t_series_array[i],self.population_probabilities[i],self.T,
+                                    self.event_time_series) for i in range(self.n)]
+        
+    
     def display(self):
         print(self.t_series_array)
         print(self.population_probabilities)
@@ -102,6 +129,7 @@ class poisson_process():
         bts=binary_time_series
         dts=[[i for i in range(len(b)) if b[i]] for b in bts]
         return np.array(dts)
+
     
     
 class mixed_poisson_populations():
@@ -121,7 +149,7 @@ class mixed_poisson_populations():
         for key in self.population_params.keys():
             self.create_poisson_processes(key)
             print("Elapsed time: {0}".format(time.time()-self.start_time))
-            if verbose:
+            if self.verbose:
                 print("Key {0} links to poisson process array:".format(key))
                 self.poisson_process_dict[key].display()
         
@@ -145,21 +173,22 @@ class mixed_poisson_populations():
     def combine(self,key_to_update,key_to_copy):
         pp_to_update=self.poisson_process_dict[key_to_update]
         pp_to_copy=self.poisson_process_dict[key_to_copy]
-        ts1 = pp_to_update.t_series_array
-        p1 = pp_to_update.population_probabilities
-        ts2 = pp_to_copy.t_series_array
-        p2 = pp_to_copy.population_probabilities
+        pp_to_update.update(pp_to_copy)
+        #ts1 = pp_to_update.t_series_array
+        #p1 = pp_to_update.population_probabilities
+        #ts2 = pp_to_copy.t_series_array
+        #p2 = pp_to_copy.population_probabilities
         
-        assert len(p1) == len(p2)
-        assert pp_to_update.T == pp_to_copy.T
-        assert len(ts1) == len(ts2)
-        assert pp_to_update.T == self.T
+        #assert len(p1) == len(p2)
+        #assert pp_to_update.T == pp_to_copy.T
+        #assert len(ts1) == len(ts2)
+        #assert pp_to_update.T == self.T
         
-        combined_ts = [np.sort(list(set(np.append(t,ts2[i])))) for i,t in enumerate(ts1)]
-        pp_to_update.t_series_array = combined_ts
-        combined_ps = [p1[i] + p2[i] - p1[i]*p2[i] for i in range(len(p1))]
-        pp_to_update.population_probabilities = combined_ps
-        return pp_to_update
+        #combined_ts = [np.sort(list(set(np.append(t,ts2[i])))) for i,t in enumerate(ts1)]
+        #pp_to_update.t_series_array = combined_ts
+        #combined_ps = [p1[i] + p2[i] - p1[i]*p2[i] for i in range(len(p1))]
+        #pp_to_update.population_probabilities = combined_ps
+        #return pp_to_update
     
     def display(self,stats=True,full=False):
         print("\n")
@@ -175,19 +204,23 @@ class mixed_poisson_populations():
                 print("For key {0}: {1}".format(key,pps.pop_stats()))
                 print("Theoretical population mean is {0} with std {1}\n".format(np.mean(probs),np.std(probs)))
             
-    def randomly_mix_populations(self):
-        pass
+    def randomly_mix_populations(self,keys=[]):
+        jumbled_time_series_obj_array = []
+        if not len(keys):
+            for key in self.poisson_process_dict.keys():
+                
+                pass
 
 
 def create_paired_noisy_lagging_time_series(length,number,verbose=False):
     population_params = {'Random A' : {'n': number,
-                                       'betas': [length/20],
+                                       'betas': [length/100],
                                        'prior poisson process': [],
                                        'lag parameters' : {'mus': None,'sigmas': None},
                                        'combine with' : None,
                                        },
                          'Random B' :  {'n': number,
-                                       'betas': [length/20],
+                                       'betas': [length/100],
                                        'prior poisson process': [],
                                        'lag parameters' : {'mus': None,'sigmas': None},
                                        'combine with' : None,
@@ -211,42 +244,66 @@ def create_paired_noisy_lagging_time_series(length,number,verbose=False):
                                        'combine with' : None,}
     mpp.create_poisson_processes('Random Z*')
     if verbose:
-        mpp.display(stats=True)
+        mpp.display(full=True)
         print("Now combining...:")
     mpp.combine(key_to_update='Random Z',key_to_copy='Random A')
     mpp.combine(key_to_update='Random Z*',key_to_copy='Random B')
     
     if verbose:
-        mpp.display(stats=True)
+        mpp.display(full=True)
     return mpp
              
 def initialise_population_params(number,betas=[],prior_poisson_process=None,lag_parameters={},combine_with = None):
     return {'n': number,'betas': betas,'prior poisson process': prior_poisson_process,
             'lag parameters' : lag_parameters,'combine with' : combine_with,}  
 
-def create_single_array_of_mixed_populations():
+def initialise_lag_params(number,means_dist='Poisson',means_lambda = 100,sigmas_scaling=1000):
+    if means_dist=='Poisson':
+        means = np.random.poisson(lam=means_lambda,size=number)
+        sigmas = [np.random.poisson(lam=m*sigmas_scaling) for m in means]
+        return {'mus' : means, 'sigmas' : sigmas}
+    
+def create_single_array_of_mixed_populations(length=10000,number=50):
     pp_event = poisson_process(1,length,[20])
     pp_event.display()
-    lag_parameters={'mus' : np.random.choice([2,20],size=number), 'sigmas' : np.random.choice([1],size=number)}
-    population_params = {'Pop 1' : initialise_population_params(number,prior_poisson_process=pp_event,lag_parameters=lag_parameters)}
+    lag_params=initialise_lag_params(number)
+    #lag_params={'mus' : np.random.choice([2,20],size=number), 'sigmas' : np.random.choice([1],size=number)}
+    population_params = {'Pop 1' : initialise_population_params(number,prior_poisson_process=pp_event,lag_parameters=lag_params)}
     mpp = mixed_poisson_populations(length,population_params)
     mpp.display(stats=True)
+    return mpp
+    
+
+
+        
+        
+#print(initialise_lag_params(20))
+    
     
     
 if __name__=='__main__':
     length=10000
-    number=5000
-    mpp_pair_of_populations = create_paired_noisy_lagging_time_series(length,number,verbose=False)
-    mpp_pair_of_populations.display()
-    probs1 = mpp_pair_of_populations.poisson_process_dict['Random A'].population_probabilities
-    probs2 = mpp_pair_of_populations.poisson_process_dict['Random B'].population_probabilities
-    ts_array1 = mpp_pair_of_populations.poisson_process_dict['Random A'].t_series_array
-    ts_array2 = mpp_pair_of_populations.poisson_process_dict['Random B'].t_series_array
-    assert(len(ts_array1)==len(probs1))
-    assert(len(ts_array2)==len(probs2))
+    pair=False
+    if pair:
+
+        number=5000
+        mpp_pair_of_populations = create_paired_noisy_lagging_time_series(length,number,verbose=False)
+        mpp_pair_of_populations.display()
+        ts_obj1 = mpp_pair_of_populations.poisson_process_dict['Random A'].time_series_objects
+        ts_obj2 = mpp_pair_of_populations.poisson_process_dict['Random B'].time_series_objects
+    else:
+        number=50
+        mpp=create_single_array_of_mixed_populations(length=length,number=number)
+        ts_obj1=mpp.poisson_process_dict['Pop 1'].time_series_objects
+        ts_obj2=[]
+    #ts_array1 = mpp_pair_of_populations.poisson_process_dict['Random A'].t_series_array
+    #ts_array2 = mpp_pair_of_populations.poisson_process_dict['Random B'].t_series_array
+    #assert(len(ts_array1)==len(probs1))
+    #assert(len(ts_array2)==len(probs2))
     
-    ts_obj1 = [pc.time_series(ts_array1[i],probs1[i],length) for i in range(len(probs1))]
-    ts_obj2 = [pc.time_series(ts_array2[i],probs2[i],length) for i in range(len(probs2))]
+    #ts_obj1 = [pc.time_series(ts_array1[i],probs1[i],length) for i in range(len(probs1))]
+    #ts_obj2 = [pc.time_series(ts_array2[i],probs2[i],length) for i in range(len(probs2))]
+    #print(ts_obj1[0].t_series)
     
     ts_matrices=[ts_obj1,ts_obj2]
     
@@ -270,8 +327,8 @@ if __name__=='__main__':
         delta=np.sqrt(length)
         params_dict = {'T' : length,
                    'n' : number,
-                   'p1' : probs1[0],
-                   'p2' : probs2[0], 
+                   'p1' : 0.1,
+                   'p2' : 0.3, 
                    'Use population means' : True,
                    'Use fixed means for setup' : False, # must be true if using population means for z-score calculations
                    'random seed' : None,
@@ -285,7 +342,7 @@ if __name__=='__main__':
         #X1=pp.poisson_process_dict['X1']
         #X2=pp.poisson_process_dict['X2']
 
-        td=pc.tweet_data(ts_matrices,params=params_dict,disjoint_sets=True,delta=delta,axes=axes[0,:])
+        td=pc.tweet_data(ts_matrices,params=params_dict,disjoint_sets=pair,delta=delta,axes=axes[0,:])
 
         start=time.time()
         #td.test_delta(max_delta=200,delta_step=5)
