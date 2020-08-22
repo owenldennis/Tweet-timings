@@ -336,17 +336,18 @@ class tweet_data():
         self.tweet_matrix=self.tweet_matrices[0]
         if self.disjoint_sets:
             self.tweet_matrix1=self.tweet_matrices[1]
-            self.results = np.array([pairwise_stats(self.tweet_matrix[i],self.tweet_matrix1[i],
+            self.raw_results = np.array([(pairwise_stats(self.tweet_matrix[i],self.tweet_matrix1[i],
                                                     delta=self.delta,progress={'step':i,'one_percent_step':int(self.n/100)},
-                                                    params = self.params,verbose=True).Z_score
+                                                    params = self.params,verbose=True).Z_score,i,i)
                                 for i in range(int(len(self.tweet_matrix)))])
+            
         else:
             self.tweet_matrix1=self.tweet_matrices[0]
-            self.results = np.array([pairwise_stats(self.tweet_matrix[i],self.tweet_matrix[j],
+            self.raw_results = np.array([(pairwise_stats(self.tweet_matrix[i],self.tweet_matrix[j],
                                                     delta=self.delta,progress={'step':self.n*i+j+1,'one_percent_step':self.n*int(self.n/100+1)},
-                                                    params =self.params).Z_score
-                                for i in range(self.n-1) for j in range(i+1,self.n)])
-        self.results = [r for r in self.results if r<np.inf]
+                                                    params =self.params).Z_score,i,j)
+                                 for i in range(self.n-1) for j in range(i+1,self.n)])
+        self.results = [r for r in self.raw_results[:,0] if r<np.inf]
         if ax==None:
             ax=self.axes[1]
         ax.hist(self.results,bins = 200,label='{0}'.format(self.T))

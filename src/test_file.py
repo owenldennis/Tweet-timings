@@ -145,8 +145,22 @@ def test_zip(a):
     print(a.values())
     print(list(zip(*a.values())))
 
-a={'mus' :[1,2,3],'sigmas' :[4,5,6]} 
-test_zip(a)  
+def test_append():
+    b=[]
+    a=[[1,2,3],[2,3],[3,5]]
+    c=[[2,7],[4],[]]
+    a=np.append(b,a)
+    print(a)
+    c=np.append(c,a,axis=0)
+    print(c)
+    np.random.shuffle(c)
+    print(c)
 
+def test_inf():
+    a=np.inf
+    print(10000000<a)
+    if not a:
+        print("Infinity is false")
+test_inf()
 
    
