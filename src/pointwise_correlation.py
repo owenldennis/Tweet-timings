@@ -54,12 +54,13 @@ class time_series():
     
     """
     
-    def __init__(self,t_series,population_mean,T,event_t_series=None,
+    def __init__(self,t_series,population_mean,T,name=None,event_t_series=None,
                  poisson_params = []):
 
         self.t_series = np.sort(t_series)
         self.T = T
         self.population_mean = population_mean
+        self.name=name
         # to avoid empty time series, if one is passed then add a single entry in a random position. Population mean must also be adjusted
         if not len(self.t_series):
             #self.t_series = np.array([np.random.randint(self.T)])
@@ -338,14 +339,14 @@ class tweet_data():
             self.tweet_matrix1=self.tweet_matrices[1]
             self.raw_results = np.array([(pairwise_stats(self.tweet_matrix[i],self.tweet_matrix1[i],
                                                     delta=self.delta,progress={'step':i,'one_percent_step':int(self.n/100)},
-                                                    params = self.params,verbose=True).Z_score,i,i)
+                                                    params = self.params,verbose=True).Z_score,self.tweet_matrix[i],self.tweet_matrix[i])
                                 for i in range(int(len(self.tweet_matrix)))])
             
         else:
             self.tweet_matrix1=self.tweet_matrices[0]
             self.raw_results = np.array([(pairwise_stats(self.tweet_matrix[i],self.tweet_matrix[j],
                                                     delta=self.delta,progress={'step':self.n*i+j+1,'one_percent_step':self.n*int(self.n/100+1)},
-                                                    params =self.params).Z_score,i,j)
+                                                    params =self.params).Z_score,self.tweet_matrix[i],self.tweet_matrix[j])
                                  for i in range(self.n-1) for j in range(i+1,self.n)])
         self.results = [r for r in self.raw_results[:,0] if r<np.inf]
         if ax==None:

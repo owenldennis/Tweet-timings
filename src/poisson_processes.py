@@ -15,11 +15,13 @@ import matplotlib.pyplot as plt
 
 class poisson_process():
     
-    def __init__(self,number,length,betas,cutoff=1.,prior_process_object = None,lag_params={},verbose=False):
+    def __init__(self,number,length,betas,name=None,cutoff=1.,prior_process_object = None,lag_params={},verbose=False):
         self.start_time=time.time()
+        self.name=name
         self.T=length
         self.n=number
         self.betas=betas
+        self.beta_fixed=False
         if len(self.betas):
             for i,beta in enumerate(self.betas):
                 if beta<cutoff: 
@@ -31,6 +33,7 @@ class poisson_process():
         if len(self.betas) and not self.n == len(self.betas):
             print("Expected {0} beta values, but only {1} values passed.  Initialising all time series with beta parameter {2}".format(self.n,len(betas),betas[0]))
             self.betas = [betas[0]]*self.n
+            self.beta_fixed=True
         # initialise population probabilities - will be changed after processes have been created
         # to reflect rounding to integers and consequent reduction in event probability
         self.population_probabilities = [1/b for b in self.betas]
@@ -48,7 +51,7 @@ class poisson_process():
             self.create_random_poisson_process()
         else:
             print("Unable to initialise - no beta paramters passed and no prior object passed")
-        
+                
         # call update to initialise time series objects
         self.update()        
     
@@ -121,11 +124,11 @@ class poisson_process():
             combined_ps = [p1[i] + p2[i] - p1[i]*p2[i] for i in range(len(p1))]
             self.population_probabilities = combined_ps
         
-        #if self.prior_process_object:
-        #    poisson_lag_params = list(zip(self.lag_params['mus'],self.lag_params['sigmas']))
-        #else:
-        #    poisson_lag_params=[None]*self.n
-        self.time_series_objects = [pc.time_series(self.t_series_array[i],self.population_probabilities[i],self.T,
+        #if self.beta_fixed:
+        #    # better estimate is averaging over the population if a single beta value is used - theroetical measure has issues!
+        #    self.population_probabilities=[np.mean([len(t_series) for t_series in self.t_series_array])/self.T]*self.n
+            
+        self.time_series_objects = [pc.time_series(self.t_series_array[i],self.population_probabilities[i],self.T,self.name,
                                     self.event_time_series) for i in range(self.n)]
         
     
@@ -177,10 +180,12 @@ class mixed_poisson_populations():
     def create_poisson_processes(self,key):
         print("Initialising for key {0}".format(key))
         betas=self.population_params[key]['betas']
+        if self.population_params[key].get('use fixed means for setup'):
+            betas=[betas[0]]
         prior_process_object = self.population_params[key].get('prior poisson process')
         lag_params = self.population_params[key].get('lag parameters')
         
-        self.poisson_process_dict[key] = poisson_process(self.population_params[key]['n'],self.T,betas,
+        self.poisson_process_dict[key] = poisson_process(self.population_params[key]['n'],self.T,betas,name=key,
                                  prior_process_object = prior_process_object, lag_params = lag_params,verbose=self.verbose)
         previous_key = self.population_params[key].get('combine with')
         if previous_key:
@@ -286,7 +291,7 @@ def turn_lists_into_dicts(sizes,keys=[],event_probs=[],mean_lags=[],noise_probs=
         #print(len(sizes))
     if not len(event_probs):
         event_probs=np.random.uniform(0.1,0.05,size=len(sizes))
-    if not mean_lags:
+    if not len(mean_lags):
         mean_lags=np.random.uniform(2,20,size=len(sizes))
     if not len(noise_probs):
         noise_probs=np.random.uniform(0.001,0.005,size=len(sizes))
@@ -294,8 +299,8 @@ def turn_lists_into_dicts(sizes,keys=[],event_probs=[],mean_lags=[],noise_probs=
     assert len(event_probs)==len(noise_probs)
     return {str(key):{'n' : sizes[i],'event probability' : event_probs[i], 'mean lag' : mean_lags[i],'noise probability' : noise_probs[i]} for i,key in enumerate(keys)}
         
-def initialise_multiple_populations(length=10000,sizes=[50],keys=[],params_lists=[],verbose=False):
-    params_for_populations=turn_lists_into_dicts(sizes,keys,*params_lists)
+def initialise_multiple_populations(length=10000,sizes=[50],keys=[],event_probs=[],mean_lags=[],noise_probs=[],use_fixed_means=False,verbose=False):
+    params_for_populations=turn_lists_into_dicts(sizes,keys,event_probs,mean_lags,noise_probs)
     if verbose:
         print(params_for_populations)
     population_params={}
@@ -306,8 +311,12 @@ def initialise_multiple_populations(length=10000,sizes=[50],keys=[],params_lists
         mean_lag=params_for_populations[key]['mean lag']
         p_noise=params_for_populations[key]['noise probability']
         noise_beta=1/p_noise
+        if use_fixed_means:
+            betas=[noise_beta]
+        else:
+            betas=np.random.poisson(noise_beta,size=number)
         population_params[key+'_noise']={'n' : number,
-                                    'betas' : np.random.poisson(noise_beta,size=number)
+                                    'betas' : betas
                                 }
         population_params[key]={'n' : number,
                                 'betas' : [],
@@ -323,7 +332,7 @@ def initialise_multiple_populations(length=10000,sizes=[50],keys=[],params_lists
 
 
 if __name__=='__main__':
-    length=1000
+    length=10000
     pair=False
     if pair:
         number=5000
@@ -332,28 +341,29 @@ if __name__=='__main__':
         ts_obj1 = mpp_pair_of_populations.poisson_process_dict['Random Z'].time_series_objects
         ts_obj2 = mpp_pair_of_populations.poisson_process_dict['Random Z*'].time_series_objects
     else:
-        clusters=5
-        pop_sizes=np.random.choice([20,8,50,100],size=clusters)  
-        pop_names=np.random.choice(['Jill','Rosa','Flo','Luke','Owen','Tom','Elena'],size=clusters,replace=False)       
-        mpp=initialise_multiple_populations(length=length,sizes=pop_sizes,keys=pop_names,verbose=False)
-        id_dict={}
-        for key in pop_names:
-            id_dict[mpp.poisson_process_dict[key].event_time_series]=key
-            
+        clusters=7
+        event_probability_range=[0.1,0.2]
+        noise_scaling=0.001
+        max_noise_prob=0.5
+        pop_sizes=np.random.choice([14,15],size=clusters)  
+        pop_names=np.random.choice(['Jill','Rosa','Flo','Luke','Owen','Tom','Elena'],size=clusters,replace=False)
+        
+        # set up allowable ranges for events,noise and lag
+        ep_lower=event_probability_range[0]
+        ep_higher=event_probability_range[1]
+        noise_lower=min(ep_lower*noise_scaling,max_noise_prob)
+        noise_higher=min(ep_higher*noise_scaling,max_noise_prob)
+        
+        # initialise event/noise probability and lag values
+        event_probs=np.random.uniform(ep_lower,ep_higher,size=clusters)
+        mean_lags=np.random.uniform(2,20,size=clusters)
+        noise_probs=np.random.uniform(noise_lower,noise_higher,size=clusters)
+        mpp=initialise_multiple_populations(length=length,sizes=pop_sizes,keys=pop_names,
+                                            event_probs=event_probs,mean_lags=mean_lags,noise_probs=noise_probs,verbose=False)
         
         ts_obj1=mpp.randomly_mix_populations(pop_names)
-        print([id_dict[t.event_t_series] for t in ts_obj1])
-        number=len(ts_obj1)
-        
+        number=len(ts_obj1)        
         ts_obj2=[]
-    #ts_array1 = mpp_pair_of_populations.poisson_process_dict['Random A'].t_series_array
-    #ts_array2 = mpp_pair_of_populations.poisson_process_dict['Random B'].t_series_array
-    #assert(len(ts_array1)==len(probs1))
-    #assert(len(ts_array2)==len(probs2))
-    
-    #ts_obj1 = [pc.time_series(ts_array1[i],probs1[i],length) for i in range(len(probs1))]
-    #ts_obj2 = [pc.time_series(ts_array2[i],probs2[i],length) for i in range(len(probs2))]
-    #print(ts_obj1[0].t_series)
     
     ts_matrices=[ts_obj1,ts_obj2]
     
@@ -407,10 +417,11 @@ if __name__=='__main__':
                     continue
                 #print(result)
                 #print(ts_obj1)
-                event1=ts_obj1[int(result[1])].event_t_series
-                event2=ts_obj1[int(result[2])].event_t_series
+                event1=result[1].event_t_series
+                event2=result[2].event_t_series
                 if event1==event2:   
-                    #print("Correlation from {0} to {1} is {2}".format(id_dict[event1],id_dict[event2],result[0]))
+                    
+                    #print("Correlation from {0} to {1} is {2}".format(result[1].name,result[2].name,result[0]))
                     matching_scores.append(result[0])
                 else:
                     non_matching_scores.append(result[0])
@@ -421,6 +432,7 @@ if __name__=='__main__':
 
 
         
+
         
         
         
