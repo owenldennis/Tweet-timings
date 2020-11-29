@@ -19,6 +19,7 @@ from numpy import corrcoef
 
 import pandas as pd
 import time
+import scipy.stats as STATS
 
 TEST_MATRIX =  [[0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
                 [0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0]]               
@@ -256,7 +257,7 @@ class tweet_data():
             
         #if verbose:
         #    print("self.ps array check: first ten entries for each population are {0}".format(np.array(self.ps)[:2,:10]))               
-        self.tweet_matrices = np.array(tweet_matrices)
+        self.tweet_matrices = tweet_matrices
         self.sparse=params['sparse']
         
         # if t_series objects are passed they must have dense time series, length of each time series should have been passed in params

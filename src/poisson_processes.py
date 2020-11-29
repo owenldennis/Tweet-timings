@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+0# -*- coding: utf-8 -*-
 """
 Created on Sun Dec 29 16:44:59 2019
 
@@ -7,13 +7,27 @@ Created on Sun Dec 29 16:44:59 2019
 
 import numpy as np
 import time
-import time_series_correlation as tsc
+#import time_series_correlation as tsc
 import pointwise_correlation as pc
 import matplotlib.pyplot as plt
 
 
 
 class poisson_process():
+    """ poisson process objects contain *number* time series objects with T=*length*
+        If a poisson_process_object is passed (as prior_process_object) then:
+            the current instance of poisson_process will contain an array of lagging time series objects
+            these are based either on n unique time series (if prior_process_object has exactly n time series objects)
+            or on a single event times series (the first time series in prior_process_object)
+        If no poisson_pocess_object is passed then at least one beta value must be passed in parameter betas:
+            the betas array provides the parameter(s) for the exponential distribution on which each poisson process is based.
+            if n beta values are passed, one time series is created for each.
+            if not, the first value in the betas array is used to parametrise all time series.
+        Once all poisson processes are created and turned into time series:
+            update method is called:
+                each time series is used to initialise a time_series object with a theoretical expected incidence calculated if possible
+    
+    """
     
     def __init__(self,number,length,betas,name=None,cutoff=1.,prior_process_object = None,lag_params={},verbose=False):
         self.start_time=time.time()
@@ -56,6 +70,16 @@ class poisson_process():
         self.update()        
     
     def create_random_poisson_process(self):
+        """
+        called if no prior_process_object is passed to _init_
+        creates n random time series using n poisson processes parametised by n entries in self.betas
+        stores theoretical mean event probability 
+
+        Returns
+        -------
+        None.
+
+        """
         # create sequence of time intervals that are expected to sum to n*T
         ts=[np.random.exponential(b,size=(int(2*self.T/b))) for b in self.betas]
         #ts=np.random.exponential(l,size=(self.n,int(2*self.T/l)))        
@@ -77,12 +101,29 @@ class poisson_process():
             print("Cumulative sums rounded, ordered and truncated")
     
     def create_lagging_poisson_process(self):
+        """
+        called if a prior_process_object is passed to __init
+
+        either
+            creates a set of lagging time series based on a single event time series, 
+        or
+            adds a lag to each of the n time series passed inside prior_process_object
+            
+        the lag parameters are stored in the self.lag_params dictionary
+        lags are then taken from poisson distributions with means passed in self.lag_params dictionary
+
+        Returns
+        -------
+        None.
+
+        """
         mus = self.lag_params['mus']
         #sigmas = self.lag_params['sigmas']
         prior_array=self.prior_process_object.t_series_array
         self.population_probabilities=self.prior_process_object.population_probabilities
         
         if not (self.n == len(mus)):# and self.n == len(sigmas)):
+            # if there are the wrong number of mus (mean lag times for each time series) then the first mu value is used for all lags
             print("Expected {0} mu/sigma values but {1}/{2} passed.  All time series allocated mean/std lag {3}/{4}".format(self.n,len(mus),len([]),mus[0],0))
             mus = [mus[0]]*self.n
             self.lag_params['mus']=mus
@@ -90,11 +131,15 @@ class poisson_process():
             #self.lag_params['sigmas']=sigmas
             
         if not (len(prior_array) == self.n):
+            # if the prior_process_object does not contain n time series objects:
+            # - the first entry is turned into an event_time_series object and its time series is replicated n times
+            # - population_probabilities updated accordingly
             print("Creating lagging time series population based on single event time series")
             self.event_time_series = pc.event_time_series(prior_array[0])
             prior_array = [self.event_time_series.t_series]*self.n
             self.population_probabilities=[self.prior_process_object.population_probabilities[0]]*self.n
         else:
+            # if there are n time series objects, each is used in turn to create a lagging time series population
             print("Creating lagging time series population based on prior population the same size")
         #self.estimated_population_probabilities = [np.mean([len(t_series) for t_series in self.t_series_array])/self.T]*self.n
             if len(self.prior_process_object.population_probabilities)==self.n:
@@ -109,6 +154,28 @@ class poisson_process():
         self.t_series_array = self.truncate_to_T(lagging_population)
 
     def update(self,pp_to_copy=None):
+        """
+        
+        update is called every time a poisson process object is initialised
+        initalises the time series objects that contain each time series
+        attempts to caclulate the theoretical population probabilites from which each time series is drawn
+        
+        Parameters
+        ----------
+        pp_to_copy : poisson_process_object, optional
+            DESCRIPTION. If a poisson_process object is passed:
+                -the union of each time series with the current object's time series in turn replaces the current object's time series
+                -this is used to add noise to a time series
+                -population probabilities are updated accordingly
+        
+                The default is None.
+
+        Returns
+        -------
+        None.
+
+        """
+        
         if pp_to_copy:
             ts1 = self.t_series_array
             p1 = self.population_probabilities
@@ -124,10 +191,12 @@ class poisson_process():
             combined_ps = [p1[i] + p2[i] - p1[i]*p2[i] for i in range(len(p1))]
             self.population_probabilities = combined_ps
         
-        #if self.beta_fixed:
+        # if no poisson_process object is passed, population probabilities are adjusted 
+        if True:#self.beta_fixed:
         #    # better estimate is averaging over the population if a single beta value is used - theroetical measure has issues!
-        #    self.population_probabilities=[np.mean([len(t_series) for t_series in self.t_series_array])/self.T]*self.n
-            
+            self.population_probabilities=[np.mean([len(t_series) for t_series in self.t_series_array])/self.T]*self.n
+           
+        # time_series objects are (re)-initialised
         self.time_series_objects = [pc.time_series(self.t_series_array[i],self.population_probabilities[i],self.T,self.name,
                                     self.event_time_series) for i in range(self.n)]
         
@@ -142,7 +211,7 @@ class poisson_process():
                 .format(len(self.t_series_array),self.T,p)
     
     def truncate_to_T(self,cts):
-        return np.array([np.sort(list(set([int(round(c)) for c in ct if (c<self.T+0.5 and c>0)]))) for ct in cts])
+        return [np.sort(list(set([int(round(c)) for c in ct if (c<self.T+0.5 and c>0)]))) for ct in cts]
         
     def convert_to_binary_time_series(self,dense_time_series_array):
         dts=dense_time_series_array
@@ -157,6 +226,13 @@ class poisson_process():
     
     
 class mixed_poisson_populations():
+    """
+    mixed_poisson_population objects initialise multiple populations of time_series objects
+    The population_params dictionary parameter contains all the parameters required.  The first level keys are the population names.
+    The'randomly_mix_populations' method extracts all time_series objects for each population and randomly shuffles them
+    
+    
+    """
     
     def __init__(self,length,population_params,verbose=False):
         self.start_time=time.time()
@@ -178,16 +254,37 @@ class mixed_poisson_populations():
                 self.poisson_process_dict[key].display()
         
     def create_poisson_processes(self,key):
+        """
+        For each population, create a poisson_processes object.
+        If this population is then to be replaced by the union of this and a previous object,
+        the combine method is called.
+        
+        Parameters
+        ----------
+        key : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
         print("Initialising for key {0}".format(key))
         betas=self.population_params[key]['betas']
+        
+        # if the whole sample is to be drawn from a single population then only use one beta parameter
         if self.population_params[key].get('use fixed means for setup'):
             betas=[betas[0]]
+        
+        # initialise the population for this key
         prior_process_object = self.population_params[key].get('prior poisson process')
         lag_params = self.population_params[key].get('lag parameters')
         
         self.poisson_process_dict[key] = poisson_process(self.population_params[key]['n'],self.T,betas,name=key,
                                  prior_process_object = prior_process_object, lag_params = lag_params,verbose=self.verbose)
         previous_key = self.population_params[key].get('combine with')
+        
+        # if this population is to be replaced by its union with a previous one then call 'combine' method
         if previous_key:
             print("Now combining poisson processes {0} with {1}".format(key,previous_key))
             if self.verbose:
@@ -197,6 +294,22 @@ class mixed_poisson_populations():
 
             
     def combine(self,pp_to_update,pp_to_copy):
+        """
+        Uses the update method in poisson_process class to create the pointwise union of two arrays of time_series objects
+        These will be stored as the array of time_series objects within pp_to_update
+
+        Parameters
+        ----------
+        pp_to_update : TYPE poisson_processes object
+            DESCRIPTION. the poisson_processes object that will have its time_series objects updated 
+        pp_to_copy : TYPE poisson_process object
+            DESCRIPTION.  The poisson process object that will be added into pp_to_update
+
+        Returns
+        -------
+        None.
+
+        """
         pp_to_update.update(pp_to_copy)
 
     
@@ -215,8 +328,23 @@ class mixed_poisson_populations():
                 print("Theoretical population mean is {0} with std {1}\n".format(np.mean(probs),np.std(probs)))
             
     def randomly_mix_populations(self,keys=[]):
+        """
+        
+
+        Parameters
+        ----------
+        keys : TYPE, optional : if keys are passed then only these populations are mixed
+            DESCRIPTION. The default is [].
+
+        Returns
+        -------
+        jumbled_ts_obj_array : TYPE array 
+            DESCRIPTION. shuffled array of all time_series objects from each population specified (or all if none specified)
+
+        """
         jumbled_ts_obj_array = []
         if not len(keys):
+            # select all keys if none specified
             keys=self.poisson_process_dict.keys()        
         for key in keys:
             jumbled_ts_obj_array=np.append(jumbled_ts_obj_array,
