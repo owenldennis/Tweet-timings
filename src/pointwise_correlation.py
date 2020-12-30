@@ -19,6 +19,7 @@ from numpy import corrcoef
 
 import pandas as pd
 import time
+import scipy.stats as STATS
 
 TEST_MATRIX =  [[0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
                 [0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0]]               
@@ -38,8 +39,8 @@ class event_time_series():
     * each time_series has an event_time_series from which a lag is added
     """
     
-    def __init__(self,time_series):
-        self.time_series = time_series
+    def __init__(self,t_series):
+        self.t_series = t_series
 
 class time_series():
     """
@@ -54,12 +55,13 @@ class time_series():
     
     """
     
-    def __init__(self,t_series,population_mean,T,event_t_series=None,
-                 poisson_params = {}):
+    def __init__(self,t_series,population_mean,T,name=None,event_t_series=None,
+                 poisson_params = []):
 
         self.t_series = np.sort(t_series)
         self.T = T
         self.population_mean = population_mean
+        self.name=name
         # to avoid empty time series, if one is passed then add a single entry in a random position. Population mean must also be adjusted
         if not len(self.t_series):
             #self.t_series = np.array([np.random.randint(self.T)])
@@ -73,11 +75,11 @@ class time_series():
         self.poisson_params = poisson_params
         self.event_t_series = event_t_series
         
-        self.mean_lag = poisson_params.get('mean_lag')
-        self.std_lag = poisson_params.get('std_lag')
+        #self.mean_lag = poisson_params[0]
+        #self.std_lag = poisson_params[1]
         
         #print("Time series is : {0} with pop mean {1} and individual mean {2}".format(self.t_series,self.population_mean,self.individual_mean))
-        
+    
         
 class pairwise_stats():
     """ Calculate parameters and z-scores based on Messager et al (2019) for two time series of the same length
@@ -123,7 +125,11 @@ class pairwise_stats():
             else:
                 self.marks_dict={}  
             self.verbose=verbose
+            
+            
             self.calculate_params()
+            
+            
             if len(self.ts1)<4 or len(self.ts2)<4:
                 #print(self.ts1)
                 #print(self.ts2)
@@ -133,31 +139,31 @@ class pairwise_stats():
             
 
 
-    def run_test(self,ts1=[],ts2=[],random_test=True):
+#    def run_test(self,ts1=[],ts2=[],random_test=True):
         # calculate total marks 
-        if not len(ts1):
-            if random_test:
-                self.ts1 = [np.random.randint(2) for i in range(20)]
-                self.ts2 = [np.random.randint(2) for i in range(20)]
-            else:
-                self.ts1 = np.array([1,0,0,1,1,0,0,0,0,0,0,0,0,1,1])
-                self.ts2 = np.array([1,1,0,0,0,0,0,1,0,0,0,1,0,0,1])
-                #self.ts1 = TEST_MATRIX[0]
-                #self.ts2 = TEST_MATRIX[1]
-        self.p1 = sum(self.ts1)/len(self.ts1)
-        self.p2 = sum(self.ts2)/len(self.ts2)
-        self.T = len(self.ts1)
-        self.marks_dict = {0:np.dot(self.ts1,self.ts2)}
-        print("First test time series is {0}".format(self.ts1))
-        print("Other test time series is {0}".format(self.ts2))
-        print("Counting marks...")
-        self.delta = 0
-        self.calculate_params()
-        stats = self.stats
-        for self.delta in range(1,len(self.ts1)):           
-            self.calculate_params()
-            stats = pd.concat([self.stats,stats]) 
-        print(stats)
+##        if not len(ts1):
+#            if random_test:
+#                self.ts1 = [np.random.randint(2) for i in range(20)]
+#                self.ts2 = [np.random.randint(2) for i in range(20)]
+#            else:
+#                self.ts1 = np.array([1,0,0,1,1,0,0,0,0,0,0,0,0,1,1])
+#                self.ts2 = np.array([1,1,0,0,0,0,0,1,0,0,0,1,0,0,1])
+#                #self.ts1 = TEST_MATRIX[0]
+#                #self.ts2 = TEST_MATRIX[1]
+#        self.p1 = sum(self.ts1)/len(self.ts1)
+#        self.p2 = sum(self.ts2)/len(self.ts2)
+#        self.T = len(self.ts1)
+#        self.marks_dict = {0:np.dot(self.ts1,self.ts2)}
+#        print("First test time series is {0}".format(self.ts1))
+#        print("Other test time series is {0}".format(self.ts2))
+#        print("Counting marks...")
+#        self.delta = 0
+#        self.calculate_params()
+#        stats = self.stats
+#        for self.delta in range(1,len(self.ts1)):           
+#            self.calculate_params()
+#            stats = pd.concat([self.stats,stats]) 
+#        print(stats)
         
     def count_marks(self,max_delta=None,verbose=False):
         if not max_delta or max_delta<self.delta:
@@ -168,8 +174,10 @@ class pairwise_stats():
         self.marks=marks
 
     def calculate_params(self,verbose=False):
-        inf_z_score = False
+#        inf_z_score = False
+        
         self.count_marks()
+        
         w=2*self.delta+1
         pq=self.p1*self.p2
         # calculation for sigma if using known population probabilities to give means
@@ -193,12 +201,12 @@ class pairwise_stats():
             self.Z_score = (self.marks-self.mu)/(self.sigma)
         else:
             print("Infinite Z-score given in pairwise_stats.calculate_params method.")
-            inf_z_score = True
+#            inf_z_score = True
             self.Z_score = np.inf
         self.stats = pd.DataFrame([[self.mu,self.sigma,self.sigma*np.sqrt(self.T),self.marks,self.Z_score]],index = [''],columns = ['Mean','Sigma','Sigma*sqrt(T)','Total','Z score'])          
-        if verbose or inf_z_score:
+        if verbose:# or inf_z_score:
             self.display_stats()
-            inf_z_score = False
+ #           inf_z_score = False
             
     def display_stats(self):
         print(pd.DataFrame([[self.p1,len(self.ts1)],[self.p2,len(self.ts2)]],index = ['Time series 1','Time series 2'],
@@ -249,7 +257,7 @@ class tweet_data():
             
         #if verbose:
         #    print("self.ps array check: first ten entries for each population are {0}".format(np.array(self.ps)[:2,:10]))               
-        self.tweet_matrices = np.array(tweet_matrices)
+        self.tweet_matrices = tweet_matrices
         self.sparse=params['sparse']
         
         # if t_series objects are passed they must have dense time series, length of each time series should have been passed in params
@@ -330,21 +338,22 @@ class tweet_data():
         self.tweet_matrix=self.tweet_matrices[0]
         if self.disjoint_sets:
             self.tweet_matrix1=self.tweet_matrices[1]
-            self.results = np.array([pairwise_stats(self.tweet_matrix[i],self.tweet_matrix1[i],
+            self.raw_results = np.array([(pairwise_stats(self.tweet_matrix[i],self.tweet_matrix1[i],
                                                     delta=self.delta,progress={'step':i,'one_percent_step':int(self.n/100)},
-                                                    params = self.params,verbose=True).Z_score
+                                                    params = self.params,verbose=True).Z_score,self.tweet_matrix[i],self.tweet_matrix[i])
                                 for i in range(int(len(self.tweet_matrix)))])
+            
         else:
             self.tweet_matrix1=self.tweet_matrices[0]
-            self.results = np.array([pairwise_stats(self.tweet_matrix[i],self.tweet_matrix[j],
+            self.raw_results = np.array([(pairwise_stats(self.tweet_matrix[i],self.tweet_matrix[j],
                                                     delta=self.delta,progress={'step':self.n*i+j+1,'one_percent_step':self.n*int(self.n/100+1)},
-                                                    params =self.params).Z_score
-                                for i in range(self.n-1) for j in range(i+1,self.n)])
-        self.results = [r for r in self.results if r<np.inf]
+                                                    params =self.params).Z_score,self.tweet_matrix[i],self.tweet_matrix[j])
+                                 for i in range(self.n-1) for j in range(i+1,self.n)])
+        self.results = [r for r in self.raw_results[:,0] if r<np.inf]
         if ax==None:
             ax=self.axes[1]
         ax.hist(self.results,bins = 200,label='{0}'.format(self.T))
-        if self.params['p1'] and self.params.get("Use population means"):
+        if self.params.get("Use population means"):
             s = "Z-scores based on known population means."
         else:
             s="Z-scores based on individual estimates of means."

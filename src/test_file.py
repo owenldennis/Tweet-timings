@@ -141,7 +141,60 @@ def test_where():
     a = np.array([1,0,0,1,1])
     print(np.where(a>0))
 
-test_where()    
+def test_zip(a):
+    print(a.values())
+    print(list(zip(*a.values())))
 
+def test_append():
+    b=[]
+    a=[[1,2,3],[2,3],[3,5]]
+    c=[[2,7],[4],[]]
+    a=np.append(b,a)
+    print(a)
+    c=np.append(c,a,axis=0)
+    print(c)
+    np.random.shuffle(c)
+    print(c)
+
+def test_inf():
+    a=np.inf
+    print(10000000<a)
+    if not a:
+        print("Infinity is false")
+
+def test_array_conversion():
+    a = [[1,2],[4,5,6]]
+    print(a)
+    print(type(a))
+import pandas as pd
+
+def test_df():
+    df=pd.DataFrame(np.transpose([[1,2,3,8,1],['elena','luke','flo','luke','elena'],['flo','elena','luke','flo','flo']]),columns=['A','B','C'])
+    print(df)
+    #df=df.sample(frac=1)
+    #print(df)
+    names=list(set(df['B']))
+    
+    names_dict={name:i for i,name in enumerate(names)}
+    print(names_dict)
+    
+    for i in df.index:
+        name1=df.loc[i]['B']
+        name2=df.loc[i]['C']
+        if names_dict[name1]>names_dict[name2]:
+            df.loc[i]['B']=name2
+            df.loc[i]['C']=name1
+    grouped=df.groupby(['B','C'],as_index=False)
+    df_new=pd.DataFrame()
+    for group,d in grouped:
+        print(d['A'].mean())
+        df_new.loc[1,group]=d['A'].mean()
+    
+    print(df_new)
+            
+            
+    
+test_df()
+    
 
    
