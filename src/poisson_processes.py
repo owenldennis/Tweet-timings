@@ -329,7 +329,6 @@ class mixed_poisson_populations():
             
     def randomly_mix_populations(self,keys=[]):
         """
-        
 
         Parameters
         ----------
@@ -356,6 +355,30 @@ class mixed_poisson_populations():
 
 
 def create_paired_noisy_lagging_time_series(length,number,verbose=False):
+    """
+    Initialises a mixed_poisson_population object consisting of four populations:
+        'Random A' and 'Random B' are random poisson_processes objects with beta parameters assigned below
+        'Random Z' is initialised as a random poisson_process object which is then updated with 'Random A'
+        'Random Z*' is a lagging poisson_process object based on the initialised 'Random Z' and then updated with 'Random B'
+        
+    A and B are effectively the noise of the lagging time series Z and Z* which can then be analysed. 
+        
+
+    Parameters
+    ----------
+    length : TYPE integer, length of time series
+        DESCRIPTION.
+    number : TYPE integer, number of time series
+        DESCRIPTION.
+    verbose : TYPE, optional
+        DESCRIPTION. The default is False.
+
+    Returns
+    -------
+    mpp : TYPE
+        DESCRIPTION.
+
+    """
     population_params = {'Random A' : {'n': number,
                                        'betas': np.random.poisson(10,size=number),
                                        'prior poisson process': None,
@@ -413,6 +436,29 @@ def create_paired_noisy_lagging_time_series(length,number,verbose=False):
 #        return {'mus' : means}
 
 def turn_lists_into_dicts(sizes,keys=[],event_probs=[],mean_lags=[],noise_probs=[]):
+    """
+    Given lists of parameters, they are formatted into a dictionary for multiple_poisson_processes to use
+    If any optional lists are passed their length should match that of sizes parameter
+
+    Parameters
+    ----------
+    sizes : TYPE list of integers
+        DESCRIPTION. size of each population
+    keys : TYPE, optional list of strings
+        DESCRIPTION. The default is [].names of populations
+    event_probs : TYPE, optional list of floats
+        DESCRIPTION. The default is []. event incidence for each population
+    mean_lags : TYPE, optional list of floats
+        DESCRIPTION. The default is [].mean lags for each population
+    noise_probs : TYPE, optional list of floats
+        DESCRIPTION. The default is []. mean noise incidence for each population
+
+    Returns
+    -------
+    dict
+        DESCRIPTION.
+
+    """
     if not len(keys):
         keys = np.random.choice(range(len(sizes)),size=len(sizes),replace=False)
         #print(len(keys))
@@ -463,6 +509,7 @@ if __name__=='__main__':
     length=10000
     pair=False
     if pair:
+        # pair of lagging populations created with noise added
         number=5000
         mpp_pair_of_populations = create_paired_noisy_lagging_time_series(length,number,verbose=False)
         mpp_pair_of_populations.display()
