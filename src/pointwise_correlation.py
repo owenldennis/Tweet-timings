@@ -28,7 +28,7 @@ TEST_MATRIX1 = [[1,0,0,1,1,0,0,0,0,0,0,0,0,1,1],[1,1,0,0,0,0,0,1,0,0,0,1,0,0,1]]
 
 ROOT_DIR="C:/Users/owen/Machine learning projects/Luc_tweet project"
 RESULTS_DIR="{0}/Results" .format(ROOT_DIR)
-TEMP_DIR="{0}/Temp".format(ROOT_DIR)
+TEMP_DIR="{0}/Temp".format(RESULTS_DIR)
 
 EMPTY_TIME_SERIES_COUNT = 0
 SHORT_TIME_SERIES_Z_SCORES = []

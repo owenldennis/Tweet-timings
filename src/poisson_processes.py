@@ -10,6 +10,7 @@ import time
 #import time_series_correlation as tsc
 import pointwise_correlation as pc
 import matplotlib.pyplot as plt
+import pandas as pd
 
 
 
@@ -61,7 +62,13 @@ class poisson_process():
         # either initialise based on the poisson process population passed, or create a new random poisson process population
         if self.prior_process_object:
             self.create_lagging_poisson_process()
+            ##################################################################
+            print("Initialising population {1} based on a prior object with event beta {0}".format(self.prior_process_object.betas,self.name))
+            print("Mean lags for population {0} are {1}".format(self.name,self.lag_params['mus']))
+            
         elif len(betas):
+            ##################################################################
+            print("Initialising a random population {0}, size {1}, with betas {2}".format(self.name,self.n,self.betas))
             self.create_random_poisson_process()
         else:
             print("Unable to initialise - no beta paramters passed and no prior object passed")
@@ -99,6 +106,13 @@ class poisson_process():
 
         if self.verbose:
             print("Cumulative sums rounded, ordered and truncated")
+        
+        
+        ############################################
+        print("Betas for population {0} are {1}".format(self.name,self.betas))
+        
+
+        ##########################################
     
     def create_lagging_poisson_process(self):
         """
@@ -124,7 +138,7 @@ class poisson_process():
         
         if not (self.n == len(mus)):# and self.n == len(sigmas)):
             # if there are the wrong number of mus (mean lag times for each time series) then the first mu value is used for all lags
-            print("Expected {0} mu/sigma values but {1}/{2} passed.  All time series allocated mean/std lag {3}/{4}".format(self.n,len(mus),len([]),mus[0],0))
+            print("Expected {0} mu values but {1}/{2} passed.  All time series allocated mean/std lag {3}/{4}".format(self.n,len(mus),len([]),mus[0],0))
             mus = [mus[0]]*self.n
             self.lag_params['mus']=mus
             #sigmas = [sigmas[0]]*self.n
@@ -149,10 +163,19 @@ class poisson_process():
                 print("This will give unreliable results if calculating z-scores using population means unless all time series come from the same population")
                 self.population_probabilities=[np.mean([len(t_series) for t_series in self.t_series_array])/self.T]*self.n
                                   
-
+        # create self.n lagging time series by adding a lag drawn from a poisson distribution to the event time series
+        # there are self.n values held in the mus array - these are the rates for each poisson distribution
+        # this ensures the lag is not constant for a specific time series but will have an expected value of the rate
         lagging_population = [[event+np.random.poisson(mus[i]) for event in prior_array[i]] for i in range(self.n)]
         self.t_series_array = self.truncate_to_T(lagging_population)
-
+        
+        ###############################################
+        
+        print("The poisson rates for lagging population {0} are {1}".format(self.name,mus))
+        
+        
+        ###############################################
+        
     def update(self,pp_to_copy=None):
         """
         
@@ -488,18 +511,30 @@ def initialise_multiple_populations(length=10000,sizes=[50],keys=[],event_probs=
         if use_fixed_means:
             betas=[noise_beta]
         else:
-            betas=np.random.poisson(noise_beta,size=number)
+            betas=np.random.uniform(2,noise_beta*2,size=number)
         population_params[key+'_noise']={'n' : number,
                                     'betas' : betas
                                 }
         population_params[key]={'n' : number,
                                 'betas' : [],
                                 'prior poisson process' : poisson_process(1,length,[event_beta]),
-                                'lag parameters' : {'mus' : np.random.poisson(lam=mean_lag,size=number)},
+                                'lag parameters' : {'mus' : np.random.randint(1,mean_lag*2,size=number)},
+                                                    #np.random.poisson(lam=mean_lag,size=number)},
                                 'combine with' : key+'_noise'
                                 }
         #print(population_params)
         #print("\n")
+    
+    
+    #Copy parameters to csv file in TEMP directory
+    df=pd.DataFrame.from_dict(population_params,orient='index')
+    df['prior process beta'] = df['prior poisson process'].apply(lambda x: None if type(x)==float else x.betas)
+    df['mean lag list']=df['lag parameters'].apply(lambda x: None if type(x)==float else x['mus'])
+    df=df.drop(['prior poisson process','lag parameters'],axis=1)
+    df.to_csv("{0}\population_parameters.csv".format(pc.TEMP_DIR))
+    
+    
+    
     mpp = mixed_poisson_populations(length,population_params,verbose=verbose)
     mpp.display(stats=True)
     return mpp
