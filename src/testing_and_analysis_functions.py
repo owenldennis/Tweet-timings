@@ -99,8 +99,7 @@ def directly_initialise_multiple_populations(length,metaparams,use_fixed_means=F
 
 
 
-def compare_inferred_and_known_means(xs,number,ts_matrices,params={},disjoint=False,
-                                     reclustering=None,verbose=False,axes=[]):
+def compare_inferred_and_known_means(xs,number,ts_matrices,reclustering=None,verbose=False):
     """
     *Compares z_scores when means are inferred/known
     *Plot of sigma values for each against length of time series (given by parameter xs) is also shown
@@ -109,8 +108,7 @@ def compare_inferred_and_known_means(xs,number,ts_matrices,params={},disjoint=Fa
     *If disjoint is False, only one population is tested but all possible pairings are formed
     *If probs are None, individual probabilities are taken from a chai squared distribution
     """
-    params_dict = params
-    params_dict['sparse']=True
+    
     ts=[]
     ys = [] # sigma values for z scores based on inferred means
     zs =[] # mean values for z scores based on inferred means
@@ -120,27 +118,30 @@ def compare_inferred_and_known_means(xs,number,ts_matrices,params={},disjoint=Fa
     
     # start run - for each length of time series (in array xs) correlations are measured for both sigma values
     for T in xs:
-        # use maximum delta value
-        delta = int(np.sqrt(T)) 
+
         ts.append(T)        
         print("T is {0}".format(T))
 
         # set up axes to display results
         f,axes = plt.subplots(2,2)
-        f.suptitle("Comparison of inferred v known population means for T = {0},delta = {1}".format(T,delta),fontsize=16)
         for ax in axes[1]:
             ax.plot([-2,2],[0,0],'.',alpha=0.2)
       
         
         # set parameters and instantiate classes
+        params_dict = {}
+        params_dict['sparse']=True
+        disjoint=False
+        # use maximum delta value
+        delta = int(np.sqrt(T)) 
         params_dict['T'] = T
         params_dict['n'] = number # in case multiple populations have been combined
 
         td = pc.tweet_data(ts_matrices,params_dict,delta = delta,
-                        disjoint_sets=disjoint,verbose=verbose,axes = [axes[0][1],axes[1][1]])
+                        disjoint_sets=disjoint,verbose=verbose,axes = [axes[0][0],axes[1][0]])
  
         
-        print("Running with inferred means.  Time elapsed: {0}".format(time.time()-start_time))        
+        print("Running with inferred means (version 1).  Time elapsed: {0}".format(time.time()-start_time))        
         td.params['Use population means']=False
         td.display_Z_vals()
         ys.append(np.std(td.results))
@@ -149,8 +150,8 @@ def compare_inferred_and_known_means(xs,number,ts_matrices,params={},disjoint=Fa
         
         
         td.params['Use population means']=True
-        td.axes=[axes[0][0],axes[1][0]]
-        print("Running with population means. Time elapsed: {0}".format(time.time()-start_time))        
+        td.axes=[axes[0][0],axes[1][1]]
+        print("Running with population means (version 2). Time elapsed: {0}".format(time.time()-start_time))        
         td.display_Z_vals()
         y1s.append(np.std(td.results))
         z1s.append(np.mean(td.results))
@@ -158,19 +159,21 @@ def compare_inferred_and_known_means(xs,number,ts_matrices,params={},disjoint=Fa
         
         #pd.DataFrame(np.transpose([ts,zs,ys,z1s,y1s])).to_csv("{0}/Accumulating results.csv".format(TEMP_DIR))
     
-        axes[0][1].errorbar(ts,zs,ys,color='r',label='inferred')
-        axes[0][1].errorbar(ts,z1s,y1s,color='b',label='known')
-        axes[0][1].set_title("Accumulating results")
+        axes[0][1].errorbar(ts,zs,ys,color='r',label='v1')
+        axes[0][1].errorbar(ts,z1s,y1s,color='b',label='v2')
+        axes[0][1].set_title("Errorbars for z-scores")
         axes[0][1].legend()
+        
         axes[1][0].legend()
         axes[1][1].legend()
+        f.suptitle("Comparison of version 1 and version 2 sigmas for T = {0},delta = {1}".format(T,delta),fontsize=16)
         
         plt.show()
     df=pd.concat([pd.DataFrame(xs,columns=['T']),
-                   pd.DataFrame(ys,columns=['Z score std dev (known means)']),
-                   pd.DataFrame(zs,columns=['Z score mean (known means)']),
-                   pd.DataFrame(y1s,columns=['Z score std dev (inferred means)']),
-                   pd.DataFrame(z1s,columns=['Z score mean (inferred means)'])],axis=1)
+                   pd.DataFrame(ys,columns=['Z score std dev (v1 sigma)']),
+                   pd.DataFrame(zs,columns=['Z score mean (v1 sigma)']),
+                   pd.DataFrame(y1s,columns=['Z score std dev (v2 sigma)']),
+                   pd.DataFrame(z1s,columns=['Z score mean (v2 sigma)'])],axis=1)
     #df.to_csv("{0}/Sigma_comparison{1}.csv".format(TEMP_DIR,str(xs)[:10]),mode='a')
     return td,df
 
@@ -212,6 +215,16 @@ def copy_from_temp(dest_root_dir):
         dest_file=os.path.join(dest_dir,file_name)
         if os.path.isfile(full_file_name):
             shutil.copy(full_file_name, dest_file)  
-    #for file in os.listdir(pc.TEMP_DIR):
-    #    print(pc.TEMP_DIR)
-    #    shutil.copy("{0}/{1}".format(pc.TEMP_DIR,file),"{0}/{1}".format(dest_dir,file))
+
+## loads results from given directory and files to separate dataframes.  These are returned formatted ready to be analysed in Louvain method
+def load_results_to_dfs(directory,v1_files=['sigma_v1_correlations.csv'],
+                      v2_files=['sigma_v2_correlations.csv']):
+
+    v1_df=pd.concat([pd.read_csv("{0}/{1}".format(directory,v1_file),index_col=0) for v1_file in v1_files]).sort_index()
+    v2_df=pd.concat([pd.read_csv("{0}/{1}".format(directory,v2_file),index_col=0) for v2_file in v2_files]).sort_index()
+
+    return v1_df.rename(columns={'id1':'object1','id2':'object2'}),v2_df.rename(columns={'id1':'object1','id2':'object2'})
+
+
+
+                      
