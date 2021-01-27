@@ -241,8 +241,9 @@ class tweet_data():
     """
     
     def __init__(self,tweet_matrices = [],params = {},bernoulli=True,delta = 2,
-                disjoint_sets = False,test_delta = False,verbose=False,axes=[]):
+                disjoint_sets = False,test_delta = False,verbose=False,axes=[],create_own_axes=False):
         self.axes = axes
+        self.create_own_axes=create_own_axes
         self.params = params
         self.verbose=verbose
         self.disjoint_sets=disjoint_sets
@@ -272,16 +273,18 @@ class tweet_data():
                 print("About to initialise tweet matrix")    
             self.initialise_arrays()
             
-        if not len(self.axes):
+        if not len(self.axes) and create_own_axes:
             f,self.axes=plt.subplots(1,len(self.tweet_matrices))
 
         if True:
             for i,m in enumerate(self.tweet_matrices):           
                 print("Analysis of tweet matrix {2}: {0} time series length {1}".format(len(m),self.T,i))
                 probs=[len(ts.t_series)/ts.T for ts in m]
-                self.axes[0].hist(probs,bins=100)
+                if len(self.axes):
+                    self.axes[0].hist(probs,bins=100)
                 
-            self.axes[0].set_title("Proportion of 1s across all time series analysed")
+            if len(self.axes):
+                self.axes[0].set_title("Proportion of 1s across all time series analysed")
 
         if test_delta:
             self.test_delta()               
@@ -350,17 +353,19 @@ class tweet_data():
                                                     params =self.params).Z_score,self.tweet_matrix[i],self.tweet_matrix[j])
                                  for i in range(self.n-1) for j in range(i+1,self.n)])
         self.results = [r for r in self.raw_results[:,0] if r<np.inf]
-        if ax==None:
-            ax=self.axes[1]
-        ax.hist(self.results,bins = 200,label='{0}'.format(self.T))
-        if self.params.get("Use population means"):
-            s = "Z-scores based on known population means."
-        else:
-            s="Z-scores based on individual estimates of means."
-        ax.set_title(s +  " Sample stats: mu={0:.2f},sigma={1:.2f}".format(np.mean(self.results),np.std(self.results)))
+        
+        if len(self.axes):
+            if ax==None:
+                ax=self.axes[1]
+            ax.hist(self.results,bins = 200,label='{0}'.format(self.T))
+            if self.params.get("Use population means"):
+                s = "Z-scores based on known population means."
+            else:
+                s="Z-scores based on individual estimates of means."
+            ax.set_title(s +  " Sample stats: mu={0:.2f},sigma={1:.2f}".format(np.mean(self.results),np.std(self.results)))
  
-        print("Sample mean {0}, sample sigma {1}".format(np.mean(self.results),np.std(self.results)))
-        print("Delta (max time-lag tested) is {0}".format(self.delta))
+            print("Sample mean {0}, sample sigma {1}".format(np.mean(self.results),np.std(self.results)))
+            print("Delta (max time-lag tested) is {0}".format(self.delta))
 
     
     def test_delta(self,max_delta=None,delta_step=1,ax=None):

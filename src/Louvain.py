@@ -65,7 +65,7 @@ def make_partition_and_score(df_results,test_random_graph=False,pass_weights=Tru
     for node_id in partition.keys():
         cross_reference_dict[partition[node_id]][name_of_node[node_id]]+=1
     
-    display(pd.DataFrame.from_dict(cross_reference_dict,orient='index'))
+    print(pd.DataFrame.from_dict(cross_reference_dict,orient='index'))
         
         
     
@@ -110,7 +110,8 @@ def make_partition_and_score(df_results,test_random_graph=False,pass_weights=Tru
     f_score=2*R*P/(R+P)            
     return {'clusters':clusters,'recall':R,'precision':P,'f_score':f_score}
 
-def analyse_raw_results_for_scoring(td_object,reclustering=None,test_random_graph=False,repeats=1,pass_weights=True,verbose=False):
+def analyse_raw_results_for_scoring(td_object,reclustering=None,test_random_graph=False,
+                                    repeats=1,pass_weights=True,verbose=False):
     raw_results=td_object.raw_results#[:400]
     if td_object.params.get("Use population means"):
         sigma_version='sigma_v2_'
@@ -142,7 +143,7 @@ def analyse_raw_results_for_scoring(td_object,reclustering=None,test_random_grap
     grouped_matching=df_matching.groupby(['name1'],as_index=False)
     df_new=pd.DataFrame()
     for group,frame in grouped_matching:
-        print(frame)
+        #print(frame)
         df_new[group]=frame.mean()
     
     # store non-matching population results in a separate df
@@ -166,13 +167,17 @@ def analyse_raw_results_for_scoring(td_object,reclustering=None,test_random_grap
         df_non_matching_mean[group]=frame.mean()
     
     
-    print("Z score and corresponding p-value mean results within each population")
-    print(df_new)
-    print("Z score and corresponding p-value mean results across populations")
-    print(df_non_matching_mean.head(2))
+    if verbose:
+        print("Z score and corresponding p-value mean results within each population")
+        print(df_new)
+        print("Z score and corresponding p-value mean results across populations")
+        print(df_non_matching_mean.head(2))
     
-    print("Mean non-matching Z-score is {0}".format(np.mean(df_non_matching['Z-score'])))
+    z_across=df_non_matching['Z-score']
+    z_within=df_matching['Z-score']
+    print("Mean non-matching stats is {0}".format([np.mean(z_across),np.std(z_across)]))
     print("Overall mean Z-score is {0}".format(np.mean(df_all['Z-score'])))
+    print("Mean matching stats is {0}".format([np.mean(z_within),np.std(z_within)]))
     
     
     # store dataframes of results in csv files
@@ -192,5 +197,9 @@ def analyse_raw_results_for_scoring(td_object,reclustering=None,test_random_grap
         if repeats:
             print("Over {0} runs of graph and partition, scores are {1}".format(repeats,scores))
     
-
+    return pd.DataFrame.from_dict({"Within population correlation mean": [np.mean(z_within)],
+                        "Within population correlation std": [np.std(z_within)],
+                        "Across populations correlation mean" : [np.mean(z_across)],
+                        "Across populations correlation std" : [np.std(z_across)]}
+                        )
 
