@@ -148,12 +148,13 @@ def compare_inferred_and_known_means(xs,number,ts_matrices,reclustering=None,ver
         td = pc.tweet_data(ts_matrices,params_dict,delta = delta,
                         disjoint_sets=disjoint,verbose=verbose,axes = first_run_axes)
  
-        # measure the spread of incidence across the passed time series data
-        probs=[len(ts.t_series)/ts.T for ts in td.tweet_matrices[0]]
-        incidence_stats={'mean_incidence' : np.mean(probs),'std_var' : np.std(probs)}
         
         print("Running with inferred means (version 1).  Time elapsed: {0}".format(time.time()-start_time))        
         td.params['Use population means']=False
+        if td.params['Use population means']:
+            version='v2_sigma'
+        else:
+            version='v1_sigma'
         td.display_Z_vals()
         # measure the spread of z-values across the correlations
         ys.append(np.std(td.results))
@@ -161,16 +162,26 @@ def compare_inferred_and_known_means(xs,number,ts_matrices,reclustering=None,ver
         
         # pass the results to the Louvain algorithm.  Reclustering will be attempted depending on the parameter
         corr_overview_df=Louvain.analyse_raw_results_for_scoring(td,reclustering=reclustering)
-        print(corr_overview_df)
+
+        corr_overview_df=corr_overview_df.rename({'mean' : 'Z score mean ({0})'.format(version),
+                                                  'std' : 'Z score std ({0})'.format(version)},axis=1)
+
         
         td.params['Use population means']=True
+        if td.params['Use population means']:
+            version='v2_sigma'
+        else:
+            version='v1_sigma'
         td.axes=second_run_axes
         print("Running with population means (version 2). Time elapsed: {0}".format(time.time()-start_time))        
         td.display_Z_vals()
         y1s.append(np.std(td.results))
         z1s.append(np.mean(td.results))
         corr_df=Louvain.analyse_raw_results_for_scoring(td,reclustering=reclustering)
-        print(pd.concat([corr_overview_df,corr_df]))
+        #corr_df.index=[version]
+        corr_df=corr_df.rename({'mean' : 'Z score mean ({0})'.format(version),
+                                                  'std' : 'Z score std ({0})'.format(version)},axis=1)
+        corr_df[corr_overview_df.columns]=corr_overview_df
         #pd.DataFrame(np.transpose([ts,zs,ys,z1s,y1s])).to_csv("{0}/Accumulating results.csv".format(TEMP_DIR))
     
         if show_distributions:
@@ -184,11 +195,15 @@ def compare_inferred_and_known_means(xs,number,ts_matrices,reclustering=None,ver
             f.suptitle("Comparison of version 1 and version 2 sigmas for T = {0},delta = {1}".format(T,delta),fontsize=16)
         
             plt.show()
-    df=pd.concat([pd.DataFrame(xs,columns=['T']),
-                   pd.DataFrame(ys,columns=['Z score std dev (v1 sigma)']),
-                   pd.DataFrame(zs,columns=['Z score mean (v1 sigma)']),
-                   pd.DataFrame(y1s,columns=['Z score std dev (v2 sigma)']),
-                   pd.DataFrame(z1s,columns=['Z score mean (v2 sigma)'])],axis=1)
+    df=pd.concat([pd.DataFrame(zs,columns=['Z score mean (v1_sigma)']),
+                   pd.DataFrame(ys,columns=['Z score std (v1_sigma)']),
+                   pd.DataFrame(z1s,columns=['Z score mean (v2_sigma)']),
+                   pd.DataFrame(y1s,columns=['Z score std (v2_sigma)'])]
+                 ,axis=1)
+    
+    df.index=['All correlations']
+    df=df.append(corr_df)
+    
     #df.to_csv("{0}/Sigma_comparison{1}.csv".format(TEMP_DIR,str(xs)[:10]),mode='a')
     return td,df
 

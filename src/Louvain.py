@@ -197,9 +197,9 @@ def analyse_raw_results_for_scoring(td_object,reclustering=None,test_random_grap
         if repeats:
             print("Over {0} runs of graph and partition, scores are {1}".format(repeats,scores))
     
-    return pd.DataFrame.from_dict({"Within population correlation mean": [np.mean(z_within)],
-                        "Within population correlation std": [np.std(z_within)],
-                        "Across populations correlation mean" : [np.mean(z_across)],
-                        "Across populations correlation std" : [np.std(z_across)]}
-                        )
+    return pd.DataFrame.from_dict({"matching": {'mean':np.mean(z_within),
+                                                  "std": np.std(z_within)},
+                                  "not matching" : {'mean': np.mean(z_across),
+                                                       "std" : np.std(z_across)}
+                                   },orient='index')
 
