@@ -175,9 +175,10 @@ def analyse_raw_results_for_scoring(td_object,reclustering=None,test_random_grap
     
     z_across=df_non_matching['Z-score']
     z_within=df_matching['Z-score']
-    print("Mean non-matching stats is {0}".format([np.mean(z_across),np.std(z_across)]))
-    print("Overall mean Z-score is {0}".format(np.mean(df_all['Z-score'])))
-    print("Mean matching stats is {0}".format([np.mean(z_within),np.std(z_within)]))
+    if verbose:
+        print("Mean non-matching stats is {0}".format([np.mean(z_across),np.std(z_across)]))
+        print("Overall mean Z-score is {0}".format(np.mean(df_all['Z-score'])))
+        print("Mean matching stats is {0}".format([np.mean(z_within),np.std(z_within)]))
     
     
     # store dataframes of results in csv files

@@ -122,7 +122,7 @@ def compare_inferred_and_known_means(xs,number,ts_matrices,reclustering=None,ver
     for T in xs:
 
         ts.append(T)        
-        print("T is {0}".format(T))
+        #print("T is {0}".format(T))
 
         # set up axes to display results
         if show_distributions:
@@ -149,7 +149,8 @@ def compare_inferred_and_known_means(xs,number,ts_matrices,reclustering=None,ver
                         disjoint_sets=disjoint,verbose=verbose,axes = first_run_axes)
  
         
-        print("Running with inferred means (version 1).  Time elapsed: {0}".format(time.time()-start_time))        
+        if verbose:
+            print("Running with inferred means (version 1).  Time elapsed: {0}".format(time.time()-start_time))        
         td.params['Use population means']=False
         if td.params['Use population means']:
             version='v2_sigma'
@@ -173,7 +174,8 @@ def compare_inferred_and_known_means(xs,number,ts_matrices,reclustering=None,ver
         else:
             version='v1_sigma'
         td.axes=second_run_axes
-        print("Running with population means (version 2). Time elapsed: {0}".format(time.time()-start_time))        
+        if verbose:
+            print("Running with population means (version 2). Time elapsed: {0}".format(time.time()-start_time))        
         td.display_Z_vals()
         y1s.append(np.std(td.results))
         z1s.append(np.mean(td.results))

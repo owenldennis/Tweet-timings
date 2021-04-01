@@ -46,7 +46,9 @@ class poisson_process():
         
         # ensure that, if any beta values are passed, the size of the array matches the size of the population
         if len(self.betas) and not self.n == len(self.betas):
-            print("Expected {0} beta values, but only {1} values passed.  Initialising all time series with beta parameter {2}".format(self.n,len(betas),betas[0]))
+            if verbose:
+                print("Expected {0} beta values, but only {1} values passed.  Initialising all time series with beta parameter {2}".format(self.n,len(betas),betas[0]))
+                
             self.betas = [betas[0]]*self.n
             self.beta_fixed=True
         # initialise population probabilities - will be changed after processes have been created
@@ -63,12 +65,14 @@ class poisson_process():
         if self.prior_process_object:
             self.create_lagging_poisson_process()
             ##################################################################
-            print("Initialising population {1} based on a prior object with event beta {0}".format(self.prior_process_object.betas,self.name))
-            print("Mean lags for population {0} are {1}".format(self.name,self.lag_params['mus']))
+            if verbose:
+                print("Initialising population {1} based on a prior object with event beta {0}".format(self.prior_process_object.betas,self.name))
+                print("Mean lags for population {0} are {1}".format(self.name,self.lag_params['mus']))
             
         elif len(betas):
             ##################################################################
-            print("Initialising a random population {0}, size {1}, with betas {2}".format(self.name,self.n,self.betas))
+            if verbose:
+                print("Initialising a random population {0}, size {1}, with betas {2}".format(self.name,self.n,self.betas))
             self.create_random_poisson_process()
         else:
             print("Unable to initialise - no beta paramters passed and no prior object passed")
@@ -93,7 +97,7 @@ class poisson_process():
         if self.verbose:
             print("Random exponential set of time intervals totalling {0} initialised".format(self.T))
             print("Elapsed time {0}.  Now cumulating...".format(time.time()-self.start_time))
-        cts=np.array([np.cumsum(t) for t in ts])
+        cts=np.array([np.cumsum(t) for t in ts],dtype=object)
 
         if self.verbose:
             print("Cumulative sum initialised to time {0}".format(self.T))
@@ -109,7 +113,7 @@ class poisson_process():
         
         
         ############################################
-        print("Betas for population {0} are {1}".format(self.name,self.betas))
+            print("Betas for population {0} are {1}".format(self.name,self.betas))
         
 
         ##########################################
@@ -138,7 +142,9 @@ class poisson_process():
         
         if not (self.n == len(mus)):# and self.n == len(sigmas)):
             # if there are the wrong number of mus (mean lag times for each time series) then the first mu value is used for all lags
-            print("Expected {0} mu values but {1}/{2} passed.  All time series allocated mean/std lag {3}/{4}".format(self.n,len(mus),len([]),mus[0],0))
+            if self.verbose:
+                print("Expected {0} mu values but {1}/{2} passed.  All time series allocated mean/std lag {3}/{4}".format(self.n,len(mus),len([]),mus[0],0))
+                
             mus = [mus[0]]*self.n
             self.lag_params['mus']=mus
             #sigmas = [sigmas[0]]*self.n
@@ -148,7 +154,8 @@ class poisson_process():
             # if the prior_process_object does not contain n time series objects:
             # - the first entry is turned into an event_time_series object and its time series is replicated n times
             # - population_probabilities updated accordingly
-            print("Creating lagging time series population based on single event time series")
+            if self.verbose:
+                print("Creating lagging time series population based on single event time series")
             self.event_time_series = pc.event_time_series(prior_array[0])
             prior_array = [self.event_time_series.t_series]*self.n
             self.population_probabilities=[self.prior_process_object.population_probabilities[0]]*self.n
@@ -171,7 +178,8 @@ class poisson_process():
         
         ###############################################
         
-        print("The poisson rates for lagging population {0} are {1}".format(self.name,mus))
+        if self.verbose:
+            print("The poisson rates for lagging population {0} are {1}".format(self.name,mus))
         
         
         ###############################################
@@ -271,8 +279,9 @@ class mixed_poisson_populations():
     def initialise_distinct_populations(self):
         for key in self.population_params.keys():
             self.create_poisson_processes(key)
-            print("Elapsed time: {0}".format(time.time()-self.start_time))
+
             if self.verbose:
+                print("Elapsed time: {0}".format(time.time()-self.start_time))
                 print("Key {0} links to poisson process array:".format(key))
                 self.poisson_process_dict[key].display()
         
@@ -292,7 +301,8 @@ class mixed_poisson_populations():
         None.
 
         """
-        print("Initialising for key {0}".format(key))
+        if self.verbose:
+            print("Initialising for key {0}".format(key))
         betas=self.population_params[key]['betas']
         
         # if the whole sample is to be drawn from a single population then only use one beta parameter
@@ -309,7 +319,8 @@ class mixed_poisson_populations():
         
         # if this population is to be replaced by its union with a previous one then call 'combine' method
         if previous_key:
-            print("Now combining poisson processes {0} with {1}".format(key,previous_key))
+            if self.verbose:
+                print("Now combining poisson processes {0} with {1}".format(key,previous_key))
             if self.verbose:
                 print("About to overwrite processes for key {0} - currently:".format((key)))
                 self.poisson_process_dict[key].display()

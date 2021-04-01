@@ -29,7 +29,8 @@ TEST_MATRIX1 = [[1,0,0,1,1,0,0,0,0,0,0,0,0,1,1],[1,1,0,0,0,0,0,1,0,0,0,1,0,0,1]]
 ROOT_DIR="C:/Users/owen/Machine learning projects/Luc_tweet project"
 RESULTS_DIR="{0}/Results" .format(ROOT_DIR)
 TEMP_DIR="{0}/Temp".format(RESULTS_DIR)
-INDEX_FILE="{0}/correlations_index.csv".format(RESULTS_DIR)
+SYSTEMATIC_INDEX_FILE="{0}/systematic_correlations_index.csv".format(RESULTS_DIR)
+INDEX_FILE="{0}/multiple_pop_correlations_index.csv".format(RESULTS_DIR)
 
 EMPTY_TIME_SERIES_COUNT = 0
 SHORT_TIME_SERIES_Z_SCORES = []
@@ -91,7 +92,7 @@ class pairwise_stats():
     
     def __init__(self,t_series1 : time_series, t_series2 : time_series,params={},delta=1,marks_dict={},
                  test=False,random_test=False,verbose=False,progress={}):
-        if progress.get('one_percent_step'):
+        if progress.get('one_percent_step') and verbose:
             if not progress.get('step')%progress.get('one_percent_step'):
                 print(progress.get('step')/progress.get('one_percent_step'),end = ',')
         
@@ -279,7 +280,8 @@ class tweet_data():
 
         if True:
             for i,m in enumerate(self.tweet_matrices):           
-                print("Analysis of tweet matrix {2}: {0} time series length {1}".format(len(m),self.T,i))
+                if verbose:
+                    print("Analysis of tweet matrix {2}: {0} time series length {1}".format(len(m),self.T,i))
                 probs=[len(ts.t_series)/ts.T for ts in m]
                 if len(self.axes):
                     self.axes[0].hist(probs,bins=100)
