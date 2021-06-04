@@ -59,7 +59,8 @@ EXPLANATIONS_DICT = {'length of time series' : 'length of each time series compa
                      'v2 weighted Z-score' : 'Attempt to create statistically valid z-score based on the number of comparisons and the measured null hypothesis values', 
                      'v2 p-value' : 'p-value based on the weighted z-score for v2 sigma'}
 
-def mutual_information_analysis(df,verbose=False,all_results=False,cutoff=0.1,display_scattergraphs=False):
+def mutual_information_analysis(df,verbose=False,all_results=False,target_results_cols = [],cutoff=0.1,display_scattergraphs=False):
+     
     
     df=df.dropna()
     ### only results that mean anything for v2 sigma have individuals within a population drawn from same incidence
@@ -77,7 +78,8 @@ def mutual_information_analysis(df,verbose=False,all_results=False,cutoff=0.1,di
            'v2_null_std', 'v1 weighted Z-score', 'v1 p-value',
            'v2 weighted Z-score', 'v2 p-value']
     
-    # columns containing results
+    # determine which columns containing results are to be used in MI comparisons with parameters
+    # defaults to the correlation results for v1 and v2 sigmas if nothing passed in function parameters
     if all_results:
         results_columns=['Z score mean (v1_sigma)',
                      'Z score std (v1_sigma)', 
@@ -88,7 +90,11 @@ def mutual_information_analysis(df,verbose=False,all_results=False,cutoff=0.1,di
                      'v2 weighted Z-score', 'v2 p-value'
                     ]
         print("Analysing MI between parameters and every results column...")
-    else:
+    elif len(target_results_cols):
+        results_columns = target_results_cols
+        print("Mutual information between parameters and column(s) {0}".format(results_columns))
+    else: 
+        # default results columns are the correlation results for v1 and v2 sigma
         results_columns=['Z score mean (v1_sigma)',
                          'Z score mean (v2_sigma)']
         print("Mutual information between parameters and mean z-scores for comparisons within populations using version 1/version 2 sigma")
@@ -115,7 +121,7 @@ def mutual_information_analysis(df,verbose=False,all_results=False,cutoff=0.1,di
     
     
     # sort by v1 MI results
-    results_df = results_df.sort_values(by=['Z score mean (v1_sigma)'],ascending=False)
+    results_df = results_df.sort_values(by=results_columns[0],ascending=False)
     # remove very low values from display
     MI_cut_off = cutoff
     mask = results_df > MI_cut_off
@@ -209,7 +215,7 @@ def mutual_information_analysis(df,verbose=False,all_results=False,cutoff=0.1,di
                         
                 
  
-def linear_regression_analysis(df,regression_feature = 'log score', only_similar_individuals = True, color_map_col = None,verbose=False):
+def linear_regression_analysis(df,regression_feature = 'log score', regression_on_cols = ['Z score mean (v1_sigma)','Z score mean (v2_sigma)'], only_similar_individuals = True, color_map_col = None,verbose=False):
     df=df.dropna()
     ### only results that mean anything for v2 sigma have individuals within a population drawn from same incidence
     if only_similar_individuals:
@@ -219,14 +225,14 @@ def linear_regression_analysis(df,regression_feature = 'log score', only_similar
      
     # check linear correlation coefficients
     ordered_headings=np.array(list(PARAMETER_COLUMNS_DICT.keys()))
-    new_headings=np.append(ordered_headings,['Z score mean (v1_sigma)','Z score mean (v2_sigma)'])
+    new_headings=np.append(ordered_headings,regression_on_cols)
     df = df[new_headings]
     #df_clean2 = df_v2[new_headings]
     df_corr = df.corr()
     #df_clean2 = df_clean2.corr()
-    df_corr = df_corr.sort_values(by=['Z score mean (v1_sigma)'])
+    df_corr = df_corr.sort_values(by=regression_on_cols[0])
 
-    display(df_corr[['Z score mean (v1_sigma)','Z score mean (v2_sigma)']])
+    display(df_corr[regression_on_cols])
     
     # linear regression
  
@@ -236,7 +242,7 @@ def linear_regression_analysis(df,regression_feature = 'log score', only_similar
     scores={}
     plt.rcParams['figure.figsize']=[20,10]
     f,ax = plt.subplots(1,2)
-    for i,col in enumerate(['Z score mean (v1_sigma)','Z score mean (v2_sigma)']):
+    for i,col in enumerate(regression_on_cols):
         lin_reg=LinearRegression().fit(np.array(df_train[regression_feature]).reshape(len(df_train.index),1), \
                                        np.array(df_train[col]).reshape(len(df_train.index),1))
         score = lin_reg.score(np.array(df_test[regression_feature]).reshape(len(df_test.index),1), \

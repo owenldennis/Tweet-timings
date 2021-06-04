@@ -108,11 +108,8 @@ class dodgy_indices_analysis():
                 print("Inconsistency in index {0} - details above".format(self.current_index))
 
 
-if __name__ == '__main__':
-    dodgy_indices_analysis()
 
-
-def make_partition_and_score(df_results,test_random_graph=False,pass_weights=True, resolution = 1, show_dfs = False, store_results_dir= "", version = None, verbose=False):
+def make_partition_and_score(df_results,test_random_graph=False,pass_weights=True, resolution = 1, show_dfs = False, store_results_dir= "", version = None, Louvain_version = '1', verbose=False):
     
     """
     df_results must have the following columns:
@@ -177,8 +174,35 @@ def make_partition_and_score(df_results,test_random_graph=False,pass_weights=Tru
         if verbose:
             print("Assigning each edge with probability given by its p-value")
 
-    # compute the best partition
-    partition = community_louvain.best_partition(G,weight='weight',resolution = resolution)
+    if Louvain_version == '1':
+        # compute the best partition
+        partition = community_louvain.best_partition(G,weight='weight',resolution = resolution)
+    if Louvain_version == '2':
+        # choose the partition with the best number of clusters
+        dendro = community_louvain.generate_dendrogram(G)
+        # default to the lowest level (largest number of clusters)
+        level = 0
+        partition = community_louvain.partition_at_level(dendro,level)
+        
+        # if a better partition (closer to the correct number of populations) can be found then use it instead
+        for level in range(len(dendro)-1):
+            current_partition = community_louvain.partition_at_level(dendro,level)
+            #print("Partition at level {0} is {1}".format(level,current_partition))
+            clusters = len(set(current_partition.values()))
+            if clusters<len(names):
+                break
+                
+        if level:
+            last_partition = community_louvain.partition_at_level(dendro,level-1)
+            last_clusters = len(set(last_partition.values()))
+            if abs(len(names)-clusters)<abs(last_clusters - len(names)):
+                partition = current_partition
+            else:
+                partition = last_partition
+            
+            
+     
+    
     clusters=len(set(partition.values()))
     if verbose:
         print("Divided into {0} clusters".format(clusters))
