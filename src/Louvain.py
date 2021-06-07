@@ -108,169 +108,245 @@ class dodgy_indices_analysis():
                 print("Inconsistency in index {0} - details above".format(self.current_index))
 
 
+class Louvain_methods():
+    
+    def __init__(self,df_results, version = 'Unknown', p_values_graph_setup_option = 'weights', resolution = 1, 
+                 show_dfs = False, store_results_dir= "", Louvain_version = '1', verbose=False):
+        """
+        Parameters
+        ----------
+        df_results : TYPE DataFrame
+            DESCRIPTION. df_results must have the following columns:
+            'object1' giving the id of the first object
+            'object2' giving the id of the second object
+            'name1' giving the name of the population of object1
+            'name2' giving the name of the population of object2
+            'p_value' giving the probabilty of correlation between the two objects
+        p_values_graph_setup_option : TYPE string
+            DESCRIPTION options are 'random' to initalise complete graph with random edge weights;
+                                    'weights' to initialise complete graph with correlation p-values as edge weights
+                                    'edges' to selecte each edge (unweighted) with probability given by correlation p-value
+        resolution : TYPE float, optional
+            DESCRIPTION. The default is 1. Passed directly to community_Louvain methods
+        show_dfs : TYPE boolean, optional
+            DESCRIPTION. The default is False.
+        store_results_dir : TYPE string, optional
+            DESCRIPTION. The default is "". If passed, f-scores and confusion matrices are stored
+        version : TYPE string, optional
+            DESCRIPTION. The default is None. Options are 'v1' for sigma version 1 or 'v2' for sigma version 2
+        Louvain_version : TYPE string, optional
+            DESCRIPTION. The default is '1', referring to standard Louvain method maximising modularity
+                         If this is set to '2', the level of the dendrogram giving the nearest number of clusters to the number of populations is selected
+                         If this is set to '3', ***************
+        verbose : TYPE, optional
+            DESCRIPTION. The default is False.
 
-def make_partition_and_score(df_results,test_random_graph=False,pass_weights=True, resolution = 1, show_dfs = False, store_results_dir= "", version = None, Louvain_version = '1', verbose=False):
+        Returns
+        -------
+        None.
+
+        """
     
-    """
-    df_results must have the following columns:
-        'object1' giving the id of the first object
-        'object2' giving the id of the second object
-        'name1' giving the name of the population of object1
-        'name2' giving the name of the population of object2
-    
-    """
-    # randomise order of results
-    df_results=df_results.sample(frac=1)
-    # create list of the population names, nodes and dictionary that links them
-    names=list(set(df_results['name1']).union(set(df_results['name2'])))
-    nodes=list(set(df_results['object1']).union(set(df_results['object2'])))
-    if verbose:
-        print("There are {0} populations and a total of {1} individuals".format(len(names), len(nodes)))
-     
-    #name_of_node={df_results.loc[i,'object1']:df_results.loc[i,'name1'] for i in df_results.index}
-    name_of_node = {}
-    pop_sizes = collections.defaultdict(int)
-    for i in df_results.index:
-        id1 = df_results.loc[i,'object1']
-        name1 = df_results.loc[i,'name1']
-        id2 = df_results.loc[i,'object2']
-        name2 = df_results.loc[i,'name2']   
+        self.graph_setup = p_values_graph_setup_option
+        self.verbose = verbose
+        self.Louvain_version = Louvain_version
+        self.sigma_version = version
+        self.show_dfs = show_dfs
+        self.store_results_dir = store_results_dir
         
-        # test consistency of populations and names
-        if id1 in name_of_node.keys():
-            assert(name_of_node[id1] == name1)  
-        else:
-            pop_sizes[name1] += 1
-            name_of_node[id1] = name1
+        # randomise order of results
+        self.df_input_correlations = df_results.sample(frac=1)
+        # create lists of the population names and the object ids (nodes)
+        self.names=list(set(self.df_input_correlations['name1']).union(set(self.df_input_correlations['name2'])))
+        self.nodes=list(set(self.df_input_correlations['object1']).union(set(self.df_input_correlations['object2'])))
+        if verbose:
+            print("There are {0} populations and a total of {1} individuals".format(len(self.names), len(self.nodes)))
+         
+        # create dictionary to look up the population name for any given object id (node)
+        #name_of_node={self.df_input_correlations.loc[i,'object1']:self.df_input_correlations.loc[i,'name1'] for i in self.df_input_correlations.index}
+        self.name_of_node = {}
+        pop_sizes = collections.defaultdict(int)
+        for i in self.df_input_correlations.index:
+            id1 = self.df_input_correlations.loc[i,'object1']
+            name1 = self.df_input_correlations.loc[i,'name1']
+            id2 = self.df_input_correlations.loc[i,'object2']
+            name2 = self.df_input_correlations.loc[i,'name2']   
             
-        if id2 in name_of_node.keys():
-            assert(name_of_node[id2] == name2)  
-        else:
-            pop_sizes[name2] += 1
-            name_of_node[id2] = name2
-       
-    
-    if verbose:
-        print(pd.DataFrame.from_dict(pop_sizes, orient = 'index').sort_index())
-              
-        
-    #set up graph with time series as nodes and edge weights given by correlations
-    G=nx.Graph()
-    G.add_nodes_from(nodes)
-    if test_random_graph:
-        if verbose:
-            print("Testing random graph")
-        G.add_edges_from([(df_results.loc[i]['object1'],df_results.loc[i]['object2']) 
-                      for i in df_results.index if np.random.random()<0.5])
-   
-    elif pass_weights:
-        G.add_edges_from([(df_results.loc[i]['object1'],df_results.loc[i]['object2'],{'weight': df_results.loc[i]['p-value']}) 
-                      for i in df_results.index])
-        if verbose:
-            print("Passing p-values as weights for each edge")
-    else:
-        G.add_edges_from([(df_results.loc[i]['object1'],df_results.loc[i]['object2'])
-                         for i in df_results.index if np.random.random()<df_results.loc[i]['p-value']])
-        if verbose:
-            print("Assigning each edge with probability given by its p-value")
-
-    if Louvain_version == '1':
-        # compute the best partition
-        partition = community_louvain.best_partition(G,weight='weight',resolution = resolution)
-    if Louvain_version == '2':
-        # choose the partition with the best number of clusters
-        dendro = community_louvain.generate_dendrogram(G)
-        # default to the lowest level (largest number of clusters)
-        level = 0
-        partition = community_louvain.partition_at_level(dendro,level)
-        
-        # if a better partition (closer to the correct number of populations) can be found then use it instead
-        for level in range(len(dendro)-1):
-            current_partition = community_louvain.partition_at_level(dendro,level)
-            #print("Partition at level {0} is {1}".format(level,current_partition))
-            clusters = len(set(current_partition.values()))
-            if clusters<len(names):
-                break
+            # test consistency of populations and names
+            if id1 in self.name_of_node.keys():
+                assert(self.name_of_node[id1] == name1)  
+            else:
+                pop_sizes[name1] += 1
+                self.name_of_node[id1] = name1
                 
-        if level:
-            last_partition = community_louvain.partition_at_level(dendro,level-1)
-            last_clusters = len(set(last_partition.values()))
-            if abs(len(names)-clusters)<abs(last_clusters - len(names)):
-                partition = current_partition
+            if id2 in self.name_of_node.keys():
+                assert(self.name_of_node[id2] == name2)  
             else:
-                partition = last_partition
+                pop_sizes[name2] += 1
+                self.name_of_node[id2] = name2
+           
+        
+        if self.verbose:
+            print(pd.DataFrame.from_dict(pop_sizes, orient = 'index').sort_index())
+        
+        self.initialise_graph()
+        self.make_partition()
+                  
+            
+    def initialise_graph(self):
+        #set up graph with time series as nodes and edge weights given by correlations
+        self.graph=nx.Graph()
+        self.graph.add_nodes_from(self.nodes)
+        if self.graph_setup == 'random':
+            if self.verbose:
+                print("Testing random graph")
+            self.graph.add_edges_from([(self.df_input_correlations.loc[i]['object1'],self.df_input_correlations.loc[i]['object2'],
+                               {'weight': np.random.random()}) 
+                          for i in self.df_input_correlations.index])
+       
+        elif self.graph_setup == 'weights':
+            self.graph.add_edges_from([(self.df_input_correlations.loc[i]['object1'],self.df_input_correlations.loc[i]['object2'],
+                               {'weight': self.df_input_correlations.loc[i]['p-value']}) 
+                          for i in self.df_input_correlations.index])
+            if self.verbose:
+                print("Passing p-values as weights for each edge")
+        elif self.graph_setup == 'edges':
+            self.graph.add_edges_from([(self.df_input_correlations.loc[i]['object1'],self.df_input_correlations.loc[i]['object2'])
+                             for i in self.df_input_correlations.index if np.random.random()<self.df_input_correlations.loc[i]['p-value']])
+            if self.verbose:
+                print("Assigning each edge with probability given by its p-value")
+
+    def make_partition(self):
+        if self.Louvain_version == '1':
+            # compute the best partition
+            self.partition = community_louvain.best_partition(self.graph,weight='weight',resolution = self.resolution)
+        elif self.Louvain_version == '2':
+            # choose the partition with the best number of clusters
+            dendro = community_louvain.generate_dendrogram(self.graph)
+            # default to the lowest level (largest number of clusters)
+            level = 0
+            self.partition = community_louvain.partition_at_level(dendro,level)
+            
+            # if a better partition (closer to the correct number of populations) can be found then use it instead
+            for level in range(len(dendro)-1):
+                current_partition = community_louvain.partition_at_level(dendro,level)
+                #print("Partition at level {0} is {1}".format(level,current_partition))
+                clusters = len(set(current_partition.values()))
+                if clusters<len(self.names):
+                    break
+                    
+            if level:
+                last_partition = community_louvain.partition_at_level(dendro,level-1)
+                last_clusters = len(set(last_partition.values()))
+                if abs(len(self.names)-clusters)<abs(last_clusters - len(self.names)):
+                    self.partition = current_partition
+                else:
+                    self.partition = last_partition
+        
+        elif self.Louvain_version == '3':
+            # find best partition
+            self.partition = community_louvain.best_partition(self.graph,weight='weight',resolution = self.resolution)
+            # carry out Louvain community detection on each identified cluster to see if it make sense to further subdivide them
+            node_groupings = [[node for node in self.partition.keys() if self.partition[node] == subgraph_number]
+                                 for subgraph_number in self.partition.values()]
+            assert(len(self.nodes) == sum([len(nodes) for nodes in node_groupings]))
+            
+            if self.verbose:
+                print("The partition is {0}".format(self.partition))
+                print("The node-groupings are therefore {0}".format(node_groupings))
+                
+            # iterate through each group of nodes and instantiate a new Louvain_methods object for each
+            for nodes in node_groupings:
+                df = self.df_input_correlations.loc[(self.df_input_correlations['object1'].isin(nodes))
+                                                    & (self.df_input_correlations['object2'].isin(nodes))]
+                
+                sub_Louvain = Louvain_methods(df,p_values_graph_setup_option = self.graph_setup,resolution = self.resolution, 
+                                                      version = self.sigma_version, Louvain_version = '1')
+                if self.verbose:
+                    print("Sub-partition : {0}".format(sub_Louvain.partition))                                      
+                
+                
+                
+                
+                
             
             
-     
-    
-    clusters=len(set(partition.values()))
-    if verbose:
-        print("Divided into {0} clusters".format(clusters))
-    # analyse which cluster contains which members of each population
-    cross_reference_dict=collections.defaultdict(lambda: collections.defaultdict(int))
-    for node_id in partition.keys():
-        cross_reference_dict["cluster {0}".format(partition[node_id])][name_of_node[node_id]]+=1
-    
-    cross_ref_df = pd.DataFrame.from_dict(cross_reference_dict,orient = 'index')
-    if show_dfs:
-        display(cross_ref_df)
-    if len(store_results_dir):
-        cross_ref_df.to_csv("{0}/{1}confusion_matrix.csv".format(store_results_dir,version))
+                
+    #def make_sub_graph(self, nodes = []):
+    #    if not len(nodes):
+    #        nodes = self.nodes
         
+                
+    def score_partition(self): 
         
+        clusters=len(set(self.partition.values()))
+        if self.verbose:
+            print("Divided into {0} clusters".format(clusters))
+        # analyse which cluster contains which members of each population
+        cross_reference_dict=collections.defaultdict(lambda: collections.defaultdict(int))
+        for node_id in self.partition.keys():
+            cross_reference_dict["cluster {0}".format(self.partition[node_id])][self.name_of_node[node_id]]+=1
         
+        cross_ref_df = pd.DataFrame.from_dict(cross_reference_dict,orient = 'index')
+        if self.show_dfs:
+            print(cross_ref_df)
+        if len(self.store_results_dir):
+            cross_ref_df.to_csv("{0}/{1}confusion_matrix.csv".format(self.store_results_dir,self.sigma_version))
+            
+            
+            
+        
+        # make f-score based on true positive edges between ids in the same population
+        TP=collections.defaultdict(int)
+        tp=0
+        FP=collections.defaultdict(int)
+        fp=0
+        FN=collections.defaultdict(int)
+        fn=0
+        for index in self.df_input_correlations.index:
+            id1=self.df_input_correlations.loc[index]['object1']
+            pop1=self.df_input_correlations.loc[index]['name1']
+            id2=self.df_input_correlations.loc[index]['object2']
+            pop2=self.df_input_correlations.loc[index]['name2']
+            if pop1==pop2:
+                if self.partition[id1]==self.partition[id2]:
+                    TP[pop1]+=1 # true positive
+                    tp+=1
+                else:
+                    FN[pop1]+=1 # false negative
+                    fn+=1
+            elif self.partition[id1]==self.partition[id2]:
+                    FP[pop1]+=1 # false positive - not interested in true negatives
+                    FP[pop2]+=1 # NB false positive edges double counted, once for each node (population object)
+                    fp+=1
+        
+        FP_overall=sum([FP[name] for name in self.names])/2 # halved as double counted within populations
+        TP_overall=sum([TP[name] for name in self.names])
+        FN_overall=sum([FN[name] for name in self.names])
+        assert FP_overall==fp
+        assert TP_overall==tp
+        assert FN_overall==fn
+        
+        recalls = {name :TP[name]/(TP[name]+FP[name]) if (TP[name] + FP[name]) else 0 for name in self.names}
+        #print(recalls)
+        precisions = {name : TP[name]/(TP[name]+FN[name]) if (TP[name] + FN[name]) else 0 for name in self.names}
+        f_scores={name : 2*recalls[name]*precisions[name]/(recalls[name]+precisions[name]) if (recalls[name]+precisions[name]) else 0 for name in self.names}
+        scores_df = pd.DataFrame([recalls,precisions,f_scores],index=['Recall','Precison','F-score'],columns=[name for name in self.names])
+        R=TP_overall/(FP_overall+TP_overall)
+        P=TP_overall/(TP_overall+FN_overall)
+        f_score=2*R*P/(R+P)            
+        scores_df['Overall'] = [R,P,f_score]
+        if self.show_dfs:
+            print(scores_df)
+        if self.store_results_dir:
+            scores_df.to_csv("{0}/{1}recall_precision_fscores.csv".format(self.store_results_dir,self.sigma_version))
     
-    # make f-score based on true positive edges between ids in the same population
-    TP=collections.defaultdict(int)
-    tp=0
-    FP=collections.defaultdict(int)
-    fp=0
-    FN=collections.defaultdict(int)
-    fn=0
-    for index in df_results.index:
-        id1=df_results.loc[index]['object1']
-        pop1=df_results.loc[index]['name1']
-        id2=df_results.loc[index]['object2']
-        pop2=df_results.loc[index]['name2']
-        if pop1==pop2:
-            if partition[id1]==partition[id2]:
-                TP[pop1]+=1 # true positive
-                tp+=1
-            else:
-                FN[pop1]+=1 # false negative
-                fn+=1
-        elif partition[id1]==partition[id2]:
-                FP[pop1]+=1 # false positive - not interested in true negatives
-                FP[pop2]+=1 # NB false positive edges double counted, once for each node (population object)
-                fp+=1
-    
-    FP_overall=sum([FP[name] for name in names])/2 # halved as double counted within populations
-    TP_overall=sum([TP[name] for name in names])
-    FN_overall=sum([FN[name] for name in names])
-    assert FP_overall==fp
-    assert TP_overall==tp
-    assert FN_overall==fn
-    
-    recalls = {name :TP[name]/(TP[name]+FP[name]) if (TP[name] + FP[name]) else 0 for name in names}
-    #print(recalls)
-    precisions = {name : TP[name]/(TP[name]+FN[name]) if (TP[name] + FN[name]) else 0 for name in names}
-    f_scores={name : 2*recalls[name]*precisions[name]/(recalls[name]+precisions[name]) if (recalls[name]+precisions[name]) else 0 for name in names}
-    scores_df = pd.DataFrame([recalls,precisions,f_scores],index=['Recall','Precison','F-score'],columns=[name for name in names])
-    R=TP_overall/(FP_overall+TP_overall)
-    P=TP_overall/(TP_overall+FN_overall)
-    f_score=2*R*P/(R+P)            
-    scores_df['Overall'] = [R,P,f_score]
-    if show_dfs:
-        display(scores_df)
-    if store_results_dir:
-        scores_df.to_csv("{0}/{1}recall_precision_fscores.csv".format(store_results_dir,version))
-
-    return {'{0}clusters'.format(version) :[clusters],'{0}recall'.format(version) :[R],'{0}precision'.format(version) : [P],'{0}f_score'.format(version) : [f_score]}
+        return {'{0}clusters'.format(self.sigma_version) :[clusters],'{0}recall'.format(self.sigma_version) :[R],'{0}precision'.format(self.sigma_version) : [P],'{0}f_score'.format(self.sigma_version) : [f_score]}
 
 
 
 
-
+"""
 def analyse_raw_results_for_scoring(td_object,reclustering=None,test_random_graph=False,
                                     repeats=1,pass_weights=True,verbose=False):
     raw_results=td_object.raw_results#[:400]
@@ -364,4 +440,4 @@ def analyse_raw_results_for_scoring(td_object,reclustering=None,test_random_grap
                                   "not matching" : {'mean': np.mean(z_across),
                                                        "std" : np.std(z_across)}
                                    },orient='index')
-
+"""
