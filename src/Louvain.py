@@ -153,6 +153,7 @@ class Louvain_methods():
         self.sigma_version = version
         self.show_dfs = show_dfs
         self.store_results_dir = store_results_dir
+        self.resolution = resolution
         
         # randomise order of results
         self.df_input_correlations = df_results.sample(frac=1)
@@ -187,7 +188,7 @@ class Louvain_methods():
            
         
         if self.verbose:
-            print(pd.DataFrame.from_dict(pop_sizes, orient = 'index').sort_index())
+            print("Population sizes based on names in dataframe are {0}".format(pd.DataFrame.from_dict(pop_sizes, orient = 'index').sort_index()))
         
         self.initialise_graph()
         self.make_partition()
@@ -214,7 +215,7 @@ class Louvain_methods():
             self.graph.add_edges_from([(self.df_input_correlations.loc[i]['object1'],self.df_input_correlations.loc[i]['object2'])
                              for i in self.df_input_correlations.index if np.random.random()<self.df_input_correlations.loc[i]['p-value']])
             if self.verbose:
-                print("Assigning each edge with probability given by its p-value")
+                print("Assigning each edge with probability given by corresponding correlation p-value")
 
     def make_partition(self):
         if self.Louvain_version == '1':
@@ -246,26 +247,41 @@ class Louvain_methods():
         elif self.Louvain_version == '3':
             # find best partition
             self.partition = community_louvain.best_partition(self.graph,weight='weight',resolution = self.resolution)
+            if self.verbose:
+                print("The set of partitions is {0}".format(set(self.partition.values())))
             # carry out Louvain community detection on each identified cluster to see if it make sense to further subdivide them
             node_groupings = [[node for node in self.partition.keys() if self.partition[node] == subgraph_number]
-                                 for subgraph_number in self.partition.values()]
-            assert(len(self.nodes) == sum([len(nodes) for nodes in node_groupings]))
-            
+                                 for subgraph_number in set(self.partition.values())]
             if self.verbose:
                 print("The partition is {0}".format(self.partition))
                 print("The node-groupings are therefore {0}".format(node_groupings))
                 
+            assert(len(self.nodes) == sum([len(nodes) for nodes in node_groupings]))
+            
+
+                
             # iterate through each group of nodes and instantiate a new Louvain_methods object for each
-            for nodes in node_groupings:
+            new_partition = {}
+            partition_number = 0
+            for i,nodes in enumerate(node_groupings):
                 df = self.df_input_correlations.loc[(self.df_input_correlations['object1'].isin(nodes))
                                                     & (self.df_input_correlations['object2'].isin(nodes))]
                 
                 sub_Louvain = Louvain_methods(df,p_values_graph_setup_option = self.graph_setup,resolution = self.resolution, 
                                                       version = self.sigma_version, Louvain_version = '1')
                 if self.verbose:
-                    print("Sub-partition : {0}".format(sub_Louvain.partition))                                      
+                    print("Sub-partition {1} found : {0}".format(sub_Louvain.partition, i))
+                  
+                for individual in sub_Louvain.partition.keys():
+                    new_partition[individual] = sub_Louvain.partition[individual] + partition_number
                 
                 
+                partition_number += len(set(sub_Louvain.partition.values()))
+                
+            if self.verbose:
+                print("New partition now looks like: {0}".format(new_partition))
+                
+            self.partition = new_partition
                 
                 
                 
