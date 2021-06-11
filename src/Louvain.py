@@ -110,7 +110,7 @@ class dodgy_indices_analysis():
 
 class Louvain_methods():
     
-    def __init__(self,df_results, version = 'Unknown', p_values_graph_setup_option = 'weights', resolution = 1, 
+    def __init__(self,df_results, version = 'Unknown', p_values_graph_setup_option = 'weights', resolution = 1, recursion_level = 0,
                  show_dfs = False, store_results_dir= "", Louvain_version = '1', verbose=False):
         """
         Parameters
@@ -137,7 +137,9 @@ class Louvain_methods():
         Louvain_version : TYPE string, optional
             DESCRIPTION. The default is '1', referring to standard Louvain method maximising modularity
                          If this is set to '2', the level of the dendrogram giving the nearest number of clusters to the number of populations is selected
-                         If this is set to '3', ***************
+                         If this is set to '3', the standard Louvain method is run; then on each partition found, Louvain is run again
+                         If this is set to '4', Louvain is run recursively on each partition found until there is no change in the total number of partitions
+                         
         verbose : TYPE, optional
             DESCRIPTION. The default is False.
 
@@ -154,6 +156,7 @@ class Louvain_methods():
         self.show_dfs = show_dfs
         self.store_results_dir = store_results_dir
         self.resolution = resolution
+        self.recursion_level = recursion_level
         
         # randomise order of results
         self.df_input_correlations = df_results.sample(frac=1)
@@ -219,7 +222,7 @@ class Louvain_methods():
 
     def make_partition(self):
         if self.Louvain_version == '1':
-            # compute the best partition
+            # maximise modularity using greedy algorithm
             self.partition = community_louvain.best_partition(self.graph,weight='weight',resolution = self.resolution)
         elif self.Louvain_version == '2':
             # choose the partition with the best number of clusters
@@ -247,45 +250,72 @@ class Louvain_methods():
         elif self.Louvain_version == '3':
             # find best partition
             self.partition = community_louvain.best_partition(self.graph,weight='weight',resolution = self.resolution)
-            if self.verbose:
-                print("The set of partitions is {0}".format(set(self.partition.values())))
-            # carry out Louvain community detection on each identified cluster to see if it make sense to further subdivide them
-            node_groupings = [[node for node in self.partition.keys() if self.partition[node] == subgraph_number]
-                                 for subgraph_number in set(self.partition.values())]
-            if self.verbose:
-                print("The partition is {0}".format(self.partition))
-                print("The node-groupings are therefore {0}".format(node_groupings))
-                
-            assert(len(self.nodes) == sum([len(nodes) for nodes in node_groupings]))
-            
+            node_groupings = self.split_partition_into_nodes()
+            recursively_analyse_subgraphs(self, to_depth = 1)
+        
+        elif self.Louvain_version == '4':
+            # find best partition
+            self.partition = community_louvain.best_partition(self.graph,weight='weight',resolution = self.resolution)
+            self.node_groupings = self.split_partition_into_nodes()
+            self.recursively_analyse_subgraphs(self)
 
                 
-            # iterate through each group of nodes and instantiate a new Louvain_methods object for each
-            new_partition = {}
-            partition_number = 0
-            for i,nodes in enumerate(node_groupings):
-                df = self.df_input_correlations.loc[(self.df_input_correlations['object1'].isin(nodes))
+    def split_partition_into_nodes(self):
+        if self.verbose:
+            print("The set of partitions is {0}".format(set(self.partition.values())))
+        # create a list of each set of nodes that corresponds to a separate partitions
+        node_groupings = [[node for node in self.partition.keys() if self.partition[node] == subgraph_number]
+                                 for subgraph_number in set(self.partition.values())]
+        if self.verbose:
+            print("The partition is {0}".format(self.format_partition(self.partition)))
+            print("The node-groupings are therefore {0}".format(self.format_partition(node_groupings)))
+        assert(len(self.nodes) == sum([len(nodes) for nodes in node_groupings]))
+        
+        return node_groupings
+    
+    def recursively_analyse_subgraphs(self, to_depth = None):
+        if self.verbose:
+            print("Starting recursion level {0}".format(self.recursion_level))
+        # if the graph has only one partition, or the desired recursion level has been reached,break out of the recursion
+        if to_depth == self.recursion_level or len(self.node_groupings) == 1:
+            if self.verbose:
+                print("Returning from recursion level {0}".format(self.recursion_level))
+            return None    
+        
+        # iterate through each group of nodes and instantiate a new Louvain_methods object for each
+        new_partition = {}
+        partition_number = 0
+        for i,nodes in enumerate(self.node_groupings):
+            df = self.df_input_correlations.loc[(self.df_input_correlations['object1'].isin(nodes))
                                                     & (self.df_input_correlations['object2'].isin(nodes))]
                 
-                sub_Louvain = Louvain_methods(df,p_values_graph_setup_option = self.graph_setup,resolution = self.resolution, 
-                                                      version = self.sigma_version, Louvain_version = '1')
-                if self.verbose:
-                    print("Sub-partition {1} found : {0}".format(sub_Louvain.partition, i))
-                  
-                for individual in sub_Louvain.partition.keys():
-                    new_partition[individual] = sub_Louvain.partition[individual] + partition_number
+            sub_Louvain = Louvain_methods(df,p_values_graph_setup_option = self.graph_setup,resolution = self.resolution, 
+                                          recursion_level = self.recursion_level + 1, version = self.sigma_version, 
+                                          Louvain_version = self.Louvain_version, verbose = self.verbose)
+            if self.verbose:
+                print("Sub-partition {1} found : {0}".format(self.format_partition(sub_Louvain.partition), i))
+                
+            # update new partition
+            for individual in sub_Louvain.partition.keys():
+                new_partition[individual] = sub_Louvain.partition[individual] + partition_number
                 
                 
-                partition_number += len(set(sub_Louvain.partition.values()))
+            partition_number += len(set(sub_Louvain.partition.values()))
                 
             if self.verbose:
-                print("New partition now looks like: {0}".format(new_partition))
+                print("New partition now looks like: {0}".format(self.format_partition(new_partition)))
                 
-            self.partition = new_partition
+        self.partition = new_partition
                 
-                
-                
+        
+    def format_partition(self, partition):
+        if type(partition) == dict:
+            return {str(self.name_of_node[id_code]) + "_" + str(id_code)[-4:] : partition[id_code] for id_code in partition.keys()}
+        if type(partition) == list:
+            return [[str(self.name_of_node[id_code]) + "_" + str(id_code)[-4:] for id_code in node_group] for node_group in partition]
+        
             
+        
             
                 
     #def make_sub_graph(self, nodes = []):

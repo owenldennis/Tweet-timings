@@ -214,7 +214,6 @@ def mutual_information_analysis(df,verbose=False,all_results=False,target_result
                 
                         
                 
- 
 def linear_regression_analysis(df,regression_feature = 'log score', regression_on_cols = ['Z score mean (v1_sigma)','Z score mean (v2_sigma)'], only_similar_individuals = True, color_map_col = None,verbose=False):
     df=df.dropna()
     ### only results that mean anything for v2 sigma have individuals within a population drawn from same incidence
